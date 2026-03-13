@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDT Budget Dashboard — GigCtrl</title>
+<style>
+:root {
+  --black:#1A1A1A; --g900:#2C2C2A; --g600:#5F5E5A; --g400:#888780;
+  --g200:#B4B2A9; --g100:#D3D1C7; --g50:#F1EFE8; --white:#FFFFFF;
+  --green50:#EAF3DE; --green100:#C0DD97; --green600:#3B6D11; --green800:#27500A;
+  --amber50:#FAEEDA; --amber100:#FAC775; --amber600:#854F0B; --amber800:#633806;
+  --red50:#FCEBEB; --red100:#F7C1C1; --red600:#A32D2D; --red800:#791F1F;
+  --blue50:#E6F1FB; --blue100:#B5D4F4; --blue600:#185FA5; --blue800:#0C447C;
+  --fd:'Courier New',Courier,monospace;
+  --fu:Helvetica,Arial,sans-serif;
+  --pm:24px; --cp:16px; --cg:12px; --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--g50);color:var(--black);font-family:var(--fu);font-size:13px;min-height:100vh;}
+
+/* AUTH */
+#auth-gate{position:fixed;inset:0;background:var(--g50);display:flex;align-items:center;justify-content:center;z-index:200;}
+#auth-gate.hidden{display:none;}
+.auth-card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);padding:32px;width:400px;}
+.auth-client{font-size:11px;color:var(--g400);margin-bottom:24px;}
+.auth-field{margin-bottom:14px;}
+.auth-label{display:block;font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:5px;}
+.auth-input{width:100%;font-family:var(--fd);font-size:12px;color:var(--black);background:var(--g50);border:0.5px solid var(--g100);border-radius:6px;padding:9px 10px;outline:none;}
+.auth-input:focus{border-color:var(--g400);}
+.auth-error{font-size:11px;color:var(--red600);margin-bottom:10px;display:none;}
+.auth-btn{width:100%;background:var(--black);color:var(--white);font-family:var(--fu);font-weight:bold;font-size:12px;padding:11px;border:none;border-radius:6px;cursor:pointer;}
+.auth-btn:hover{background:var(--g900);}
+.auth-note{margin-top:12px;font-size:10px;color:var(--g400);line-height:1.5;}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:var(--g50);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:100;transition:opacity .3s;}
+#loading.hidden{opacity:0;pointer-events:none;}
+.load-label{font-size:10px;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;}
+.load-bar{width:160px;height:1px;background:var(--g100);}
+.load-bar-inner{height:100%;background:var(--black);width:0%;transition:width .3s;}
+
+/* APP */
+#app{display:none;}
+#app.visible{display:block;}
+
+/* HEADER */
+header{background:var(--white);border-bottom:0.5px solid var(--g100);padding:0 var(--pm);display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50;}
+.hdr-left{display:flex;align-items:center;gap:14px;}
+.hdr-div{width:0.5px;height:20px;background:var(--g100);}
+.hdr-client{font-size:11px;color:var(--g400);}
+.hdr-client strong{color:var(--black);}
+nav{display:flex;gap:2px;}
+.nav-tab{padding:6px 14px;border-radius:6px;border:none;background:transparent;color:var(--g400);font-family:var(--fu);font-size:12px;cursor:pointer;transition:all .1s;}
+.nav-tab:hover{color:var(--black);background:var(--g50);}
+.nav-tab.active{background:var(--g50);color:var(--black);font-weight:bold;}
+
+/* PAGES */
+.page{display:none;padding:var(--pm);max-width:1320px;margin:0 auto;}
+.page.active{display:block;}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--cg);margin-bottom:var(--cg);}
+.kpi-row-6{grid-template-columns:repeat(6,1fr);}
+.kpi-card{background:var(--g50);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);}
+.kpi-card.green{background:var(--green50);}
+.kpi-card.amber{background:var(--amber50);}
+.kpi-card.red{background:var(--red50);}
+.kpi-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.08em;margin-bottom:6px;}
+.kpi-value{font-family:var(--fd);font-size:16px;font-weight:bold;color:var(--black);line-height:1.1;}
+.kpi-value.green{color:var(--green800);}
+.kpi-value.amber{color:var(--amber800);}
+.kpi-value.red{color:var(--red800);}
+.kpi-sub{font-size:10px;color:var(--g400);margin-top:3px;}
+.kpi-sub.green{color:var(--green600);}
+
+/* SLIDER */
+.slider-row{display:flex;align-items:center;gap:12px;padding:10px var(--cp);border-bottom:0.5px solid var(--g100);}
+.slider-label{font-size:11px;color:var(--g600);width:110px;flex-shrink:0;}
+input[type=range]{flex:1;-webkit-appearance:none;height:1px;background:var(--g100);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--black);cursor:pointer;}
+.slider-val{font-family:var(--fd);font-weight:bold;font-size:13px;color:var(--black);width:38px;text-align:right;}
+
+/* SECTION */
+.section-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.1em;margin:20px 0 8px;}
+
+/* CARD */
+.card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);overflow:hidden;margin-bottom:var(--cg);}
+
+/* DATA TABLE */
+.data-table{width:100%;border-collapse:collapse;background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);overflow:hidden;}
+.data-table th{padding:9px 12px;text-align:left;font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);background:var(--g50);border-bottom:0.5px solid var(--g100);}
+.data-table th.r{text-align:right;}
+.data-table td{padding:9px 12px;border-bottom:0.5px solid var(--g100);font-size:12px;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--g50);}
+.data-table td.num{font-family:var(--fd);font-size:12px;text-align:right;}
+.data-table td.leg-name{font-weight:bold;}
+
+/* PILLS */
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-family:var(--fu);font-size:7.5px;font-weight:bold;white-space:nowrap;}
+.pill.green{background:var(--green50);color:var(--green800);}
+.pill.amber{background:var(--amber50);color:var(--amber800);}
+.pill.red{background:var(--red50);color:var(--red800);}
+.pill.gray{background:var(--g50);color:var(--g600);}
+.pill.blue{background:var(--blue50);color:var(--blue800);}
+
+/* INSIGHT */
+.insight-banner{border-radius:var(--r);border:0.5px solid var(--g100);border-left:2px solid var(--g400);padding:12px var(--cp);margin-bottom:var(--cg);font-size:12px;color:var(--g600);line-height:1.5;}
+.insight-banner.green{border-left-color:var(--green600);background:var(--green50);color:var(--green800);}
+.insight-banner.amber{border-left-color:var(--amber600);background:var(--amber50);color:var(--amber800);}
+.insight-banner.red{border-left-color:var(--red600);background:var(--red50);color:var(--red800);}
+
+/* DRILL CONTROLS */
+.drill-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.drill-leg{font-family:var(--fu);font-weight:bold;font-size:14px;}
+select{font-family:var(--fu);font-size:11px;color:var(--g600);background:var(--white);border:0.5px solid var(--g100);border-radius:6px;padding:5px 8px;outline:none;cursor:pointer;}
+select:focus{border-color:var(--g400);}
+
+/* TWO COL */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:var(--cg);}
+
+/* PNL */
+.pnl-table{width:100%;border-collapse:collapse;}
+.pnl-table td{padding:9px var(--cp);border-bottom:0.5px solid var(--g100);font-size:12px;}
+.pnl-table tr:last-child td{border-bottom:none;}
+.pnl-name{color:var(--g600);}
+.pnl-indent{color:var(--g400);padding-left:32px!important;font-family:var(--fd);font-size:11px;}
+.pnl-pct{text-align:right;font-family:var(--fd);font-size:11px;color:var(--g400);}
+.pnl-amt{text-align:right;font-family:var(--fd);font-size:12px;}
+.pnl-amt.neg{color:var(--red600);}
+.pnl-total td{border-top:0.5px solid var(--g100);background:var(--g50);}
+.pnl-total .pnl-name{font-weight:bold;color:var(--black);}
+.pnl-total .pnl-amt{font-weight:bold;color:var(--black);}
+.pnl-wht td{font-style:italic;}
+.pnl-wht .pnl-name,.pnl-wht .pnl-amt{color:var(--g600);}
+
+/* PLANNING */
+.planning-grid{display:grid;grid-template-columns:1fr 1fr;}
+.pm-cell{padding:12px var(--cp);border-bottom:0.5px solid var(--g100);border-right:0.5px solid var(--g100);}
+.pm-cell:nth-child(even){border-right:none;}
+.pm-cell:nth-last-child(-n+2){border-bottom:none;}
+.pm-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.08em;margin-bottom:4px;}
+.pm-value{font-family:var(--fd);font-weight:bold;font-size:14px;color:var(--black);}
+.pm-value.green{color:var(--green800);}
+.pm-value.amber{color:var(--amber800);}
+.pm-value.red{color:var(--red800);}
+.pm-note{font-size:10px;color:var(--g400);margin-top:2px;}
+
+/* COST BREAKDOWN */
+.cost-cat-row{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;align-items:center;padding:9px var(--cp);background:var(--g50);border-bottom:0.5px solid var(--g100);cursor:pointer;}
+.cost-cat-row:hover{background:var(--g100);}
+.cost-cat-name{display:flex;align-items:center;gap:8px;font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
+.cost-chevron{font-size:8px;color:var(--g400);transition:transform .15s;user-select:none;}
+.cost-chevron.open{transform:rotate(90deg);}
+.cost-cat-num{font-family:var(--fd);font-size:12px;text-align:right;color:var(--black);font-weight:bold;}
+.cost-body{display:none;}
+.cost-body.open{display:block;}
+.version-notes{padding:8px var(--cp) 8px 40px;border-bottom:0.5px dashed var(--g100);border-left:2px solid var(--blue600);background:var(--blue50);font-size:8.5px;color:var(--g600);line-height:1.5;}
+.version-notes-tag{font-family:var(--fu);font-size:7px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--blue600);margin-bottom:2px;}
+.cost-col-header{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;padding:6px var(--cp) 6px 40px;border-bottom:0.5px solid var(--g100);background:var(--g50);}
+.cost-col-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);text-align:right;}
+.cost-col-label:first-child{text-align:left;}
+.cost-coa-row{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;align-items:center;padding:9px var(--cp) 9px 40px;border-bottom:0.5px solid var(--g100);}
+.cost-coa-row:last-child{border-bottom:none;}
+.cost-coa-name{font-family:var(--fd);font-size:8.5px;color:var(--g600);}
+.cost-coa-num{font-family:var(--fd);font-size:8.5px;text-align:right;color:var(--g600);}
+.cost-totals{padding:10px var(--cp);display:grid;grid-template-columns:1fr 110px 110px 100px 80px;border-top:0.5px solid var(--g100);background:var(--g50);}
+.cost-totals-label{font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
+.cost-totals-num{font-family:var(--fd);font-weight:bold;font-size:12px;text-align:right;color:var(--black);}
+.var-pos{color:var(--green600);}
+.var-neg{color:var(--red600);}
+.dash-val{color:var(--g400);font-family:var(--fd);font-size:8.5px;}
+
+/* DRILL BTN */
+.drill-btn{background:none;border:0.5px solid var(--g100);border-radius:4px;font-family:var(--fu);font-size:10px;color:var(--g600);padding:3px 8px;cursor:pointer;}
+.drill-btn:hover{background:var(--g50);color:var(--black);}
+
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .kpi-row-6{grid-template-columns:repeat(3,1fr);}
+  .two-col{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <div style="margin-bottom:16px">
+      <svg width="72" height="72" viewBox="0 0 595.276 595.276" xmlns="http://www.w3.org/2000/svg">
+        <defs><clipPath id="ac"><path transform="matrix(1,0,0,-1,0,595.276)" d="M0 595.276H595.276V0H0Z"/></clipPath></defs>
+        <g clip-path="url(#ac)">
+          <path transform="matrix(1,0,0,-1,550.0508,485.3715)" d="M0 0C-.001-.301-.998 0-2.332 2.261-6.736 8.6-10.383 14.371-14.551 19.739-24.43 32.464-27.632 45.437-26.853 62.635-24.656 111.07-26.544 326.107-26.794 374.655-26.853 386.039-26.803 397.423-26.803 410.003-10.52 401.813-.339 388.799-.124 372.008 .729 305.347 .137 66.673 0 0M-10.846-23.272C-11.026-23.854-11.381-24.383-11.86-24.89-14.957-28.158-20.378-27.482-22.84-23.713-23.227-23.12-23.571-22.526-23.865-21.907-29.926-9.137-36.034 3.627-41.468 16.667-41.705 17.236-41.818 17.857-41.846 18.515-42.044 23.232-36.1 25.877-32.953 22.355-32.818 22.205-32.694 22.049-32.58 21.885-24.933 10.906-17.483-.253-10.809-11.835-9.126-14.756-9.743-19.725-10.846-23.272M-45.68-40.818C-58.771-41.354-71.9-41.045-85.013-41.048-208.065-41.077-331.119-41.102-454.171-41.107-471.88-41.108-473.943-37.93-466.576-21.688-461.141-9.705-455.476 2.175-450.345 13.137-449.882 14.127-448.892 14.752-447.799 14.752H-59.313C-57.384 14.752-55.634 13.635-54.826 11.882-49.021-.714-42.991-13.659-37.127-26.68-32.796-36.298-35.039-40.384-45.68-40.818M-486.246-27.764C-487.444-28.242-488.798-28.259-490.022-27.852-495.563-26.011-499.041-18.193-495.91-12.997-488.412-.556-480.307 11.53-472.096 23.521-471.834 23.901-471.481 24.22-471.065 24.495-468.057 26.489-463.806 24.883-462.888 21.393-462.749 20.865-462.73 20.392-462.901 19.999-469.61 4.588-476.751-10.638-484.019-25.797-484.452-26.7-485.192-27.343-486.246-27.764M-504.477 6.136C-504.95 5.534-505.915 5.827-505.961 6.592-506.135 9.406-506.333 12.222-506.336 15.036-506.384 75.589-506.317 302.558-506.446 363.11-506.49 383.759-498.482 399.435-479.921 409.314V370.508C-479.921 326.925-479.925 116.926-479.914 73.343-479.913 69.102-479.902 64.712-479.607 60.671-477.579 32.851-491.099 23.105-504.477 6.136M-466.122 391.18C-465.942 414.644-451.525 428.043-427.943 428.053-311.084 428.098-194.225 428.104-77.366 428.03-52.724 428.015-38.765 413.68-38.886 389.024-39.142 336.991-39.485 118.541-39.61 66.508-39.64 54.354-41.821 42.538-52.419 35.919-59.785 31.317-69.343 28.075-77.965 27.977-136.592 27.302-195.229 27.623-253.864 27.623-311.727 27.636-369.589 27.6-427.452 27.653-452.111 27.676-465.883 40.384-466.097 65.064-466.559 118.294-466.527 337.949-466.122 391.18M16.586 370.333C16.338 382.866 11.286 397.82 3.246 407.192-17.795 431.721-46.707 445.687-78.742 446.065-185.158 447.322-291.604 445.921-398.025 446.965-428.06 447.259-455.612 442.815-482.43 428.767-508.572 415.073-523.159 395.684-523.142 365.858-523.105 302.616-523.188 72.958-523.156 9.717-523.133-33.367-494.458-60.361-451.214-59.513-404.233-58.591-357.231-58.61-310.237-58.444L-48.867-59.294C-10.724-59.005 16.974-32.281 17.171 4.952 17.521 71.276 17.899 304.033 16.586 370.333" fill="#1A1A1A"/>
+          <path transform="matrix(1,0,0,-1,135.9409,268.5707)" d="M0 0C8.92-8.633 21.727-13.093 39.424-13.093 52.231-13.093 65.036-9.927 71.799-7.626V43.454H35.684V26.332H50.648V6.043C48.921 5.181 44.893 4.604 39.856 4.604 21.871 4.604 9.353 16.402 9.353 36.403 9.353 57.412 23.166 67.771 41.439 67.771 52.087 67.771 58.706 65.9 64.029 63.599L68.633 81.152C63.885 83.455 54.244 85.9 41.728 85.9 9.927 85.9-13.525 67.483-13.669 35.252-13.813 21.007-8.92 8.346 0 0" fill="#1A1A1A"/>
+          <path transform="matrix(1,0,0,-1,0,595.276)" d="M246.891 411.599H224.878V314.619H246.891Z" fill="#1A1A1A"/>
+          <path transform="matrix(1,0,0,-1,275.0986,268.5707)" d="M0 0C8.921-8.633 21.727-13.093 39.425-13.093 52.23-13.093 65.035-9.927 71.799-7.626V43.454H35.685V26.332H50.648V6.043C48.921 5.181 44.894 4.604 39.856 4.604 21.871 4.604 9.353 16.402 9.353 36.403 9.353 57.412 23.166 67.771 41.439 67.771 52.087 67.771 58.706 65.9 64.029 63.599L68.634 81.152C63.885 83.455 54.244 85.9 41.728 85.9 9.927 85.9-13.525 67.483-13.669 35.252-13.813 21.007-8.92 8.346 0 0" fill="#1A1A1A"/>
+          <path transform="matrix(1,0,0,-1,173.064,415.1742)" d="M0 0C11.798 0 20.863 2.159 24.891 4.173L21.583 21.295C17.265 19.568 9.927 18.13 3.308 18.13-16.26 18.13-27.77 30.36-27.77 49.784-27.77 71.367-14.245 81.872 3.166 81.872 10.934 81.872 17.121 80.146 21.583 78.274L26.043 95.686C22.158 97.698 13.525 100.002 2.157 100.002-27.196 100.002-50.792 81.584-50.792 48.489-50.792 20.863-33.527 0 0 0" fill="#1A1A1A"/>
+          <path transform="matrix(1,0,0,-1,207.0322,335.1732)" d="M0 0H26.043V-78.562H48.057V0H74.533V18.418H0Z" fill="#1A1A1A"/>
+          <path transform="matrix(1,0,0,-1,341,345.82069)" d="M0 0C0-8.49-6.475-13.957-17.41-13.957H-26.043V12.805C-24.46 13.094-21.438 13.525-16.116 13.525-6.043 13.382 0 8.921 0 0M-47.77 27.771V-67.914H-26.043V-29.785H-19.426C-10.503-29.929-6.331-33.238-3.741-45.325-.864-57.267 1.439-65.181 3.021-67.914H25.468C23.597-64.173 20.575-51.512 17.554-40.576 15.108-31.655 11.366-25.181 4.604-22.447V-22.015C12.949-18.993 21.728-10.503 21.728 1.871 21.728 10.792 18.562 17.554 12.805 22.158 5.899 27.627-4.174 29.784-18.562 29.784-30.217 29.784-40.721 28.921-47.77 27.771" fill="#1A1A1A"/>
+          <path transform="matrix(1,0,0,-1,439.1416,395.3178)" d="M0 0H-38.562V78.563H-60.575V-18.417H0Z" fill="#1A1A1A"/>
+        </g>
+      </svg>
+    </div>
+    <div class="auth-client">Budget Dashboard — Dom Dolla Touring</div>
+    <div class="auth-field">
+      <label class="auth-label">Airtable Personal Access Token</label>
+      <input id="input-key" class="auth-input" type="password" placeholder="pat...">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Base ID</label>
+      <input id="input-base" class="auth-input" type="text" placeholder="appXXXXXXXXXXXXXX">
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <button class="auth-btn" onclick="submitAuth()">Connect</button>
+    <div class="auth-note">Credentials are used in memory only and sent directly to Airtable's API. Nothing is stored.</div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="hidden">
+  <div class="load-label" id="load-text">Loading</div>
+  <div class="load-bar"><div class="load-bar-inner" id="load-bar"></div></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="hdr-left">
+      <svg width="26" height="26" viewBox="0 0 595.276 595.276" xmlns="http://www.w3.org/2000/svg">
+        <defs><clipPath id="hc"><path transform="matrix(1,0,0,-1,0,595.276)" d="M0 595.276H595.276V0H0Z"/></clipPath></defs>
+        <g clip-path="url(#hc)">
+          <path transform="matrix(1,0,0,-1,550.0508,485.3715)" d="M0 0C-.001-.301-.998 0-2.332 2.261-6.736 8.6-10.383 14.371-14.551 19.739-24.43 32.464-27.632 45.437-26.853 62.635-24.656 111.07-26.544 326.107-26.794 374.655-26.853 386.039-26.803 397.423-26.803 410.003-10.52 401.813-.339 388.799-.124 372.008 .729 305.347 .137 66.673 0 0M-10.846-23.272C-11.026-23.854-11.381-24.383-11.86-24.89-14.957-28.158-20.378-27.482-22.84-23.713-23.227-23.12-23.571-22.526-23.865-21.907-29.926-9.137-36.034 3.627-41.468 16.667-41.705 17.236-41.818 17.857-41.846 18.515-42.044 23.232-36.1 25.877-32.953 22.355-32.818 22.205-32.694 22.049-32.58 21.885-24.933 10.906-17.483-.253-10.809-11.835-9.126-14.756-9.743-19.725-10.846-23.272M-45.68-40.818C-58.771-41.354-71.9-41.045-85.013-41.048-208.065-41.077-331.119-41.102-454.171-41.107-471.88-41.108-473.943-37.93-466.576-21.688-461.141-9.705-455.476 2.175-450.345 13.137-449.882 14.127-448.892 14.752-447.799 14.752H-59.313C-57.384 14.752-55.634 13.635-54.826 11.882-49.021-.714-42.991-13.659-37.127-26.68-32.796-36.298-35.039-40.384-45.68-40.818M-486.246-27.764C-487.444-28.242-488.798-28.259-490.022-27.852-495.563-26.011-499.041-18.193-495.91-12.997-488.412-.556-480.307 11.53-472.096 23.521-471.834 23.901-471.481 24.22-471.065 24.495-468.057 26.489-463.806 24.883-462.888 21.393-462.749 20.865-462.73 20.392-462.901 19.999-469.61 4.588-476.751-10.638-484.019-25.797-484.452-26.7-485.192-27.343-486.246-27.764M-504.477 6.136C-504.95 5.534-505.915 5.827-505.961 6.592-506.135 9.406-506.333 12.222-506.336 15.036-506.384 75.589-506.317 302.558-506.446 363.11-506.49 383.759-498.482 399.435-479.921 409.314V370.508C-479.921 326.925-479.925 116.926-479.914 73.343-479.913 69.102-479.902 64.712-479.607 60.671-477.579 32.851-491.099 23.105-504.477 6.136M-466.122 391.18C-465.942 414.644-451.525 428.043-427.943 428.053-311.084 428.098-194.225 428.104-77.366 428.03-52.724 428.015-38.765 413.68-38.886 389.024-39.142 336.991-39.485 118.541-39.61 66.508-39.64 54.354-41.821 42.538-52.419 35.919-59.785 31.317-69.343 28.075-77.965 27.977-136.592 27.302-195.229 27.623-253.864 27.623-311.727 27.636-369.589 27.6-427.452 27.653-452.111 27.676-465.883 40.384-466.097 65.064-466.559 118.294-466.527 337.949-466.122 391.18M16.586 370.333C16.338 382.866 11.286 397.82 3.246 407.192-17.795 431.721-46.707 445.687-78.742 446.065-185.158 447.322-291.604 445.921-398.025 446.965-428.06 447.259-455.612 442.815-482.43 428.767-508.572 415.073-523.159 395.684-523.142 365.858-523.105 302.616-523.188 72.958-523.156 9.717-523.133-33.367-494.458-60.361-451.214-59.513-404.233-58.591-357.231-58.61-310.237-58.444L-48.867-59.294C-10.724-59.005 16.974-32.281 17.171 4.952 17.521 71.276 17.899 304.033 16.586 370.333" fill="#1A1A1A"/>
+        </g>
+      </svg>
+      <div class="hdr-div"></div>
+      <div class="hdr-client"><strong>Dom Dolla Touring</strong> — Budget dashboard</div>
+    </div>
+    <nav>
+      <button class="nav-tab active" onclick="showPage('overview',this)">Tour overview</button>
+      <button class="nav-tab" onclick="showPage('drilldown',this)">Leg drill-down</button>
+    </nav>
+  </header>
+
+  <!-- PAGE 1 -->
+  <div id="page-overview" class="page active">
+    <div class="card">
+      <div class="slider-row">
+        <div class="slider-label">Target margin</div>
+        <input type="range" id="ov-slider" min="10" max="60" value="30" oninput="onOvSlider(this.value)">
+        <div class="slider-val" id="ov-slider-val">30%</div>
+      </div>
+    </div>
+    <div class="kpi-row" id="ov-kpis"></div>
+    <div class="section-label">Tour legs</div>
+    <table class="data-table">
+      <thead><tr>
+        <th>Leg</th><th class="r">Gross fee</th><th class="r">Commission</th>
+        <th class="r">Allocations</th><th class="r">Tour costs</th>
+        <th class="r">Net profit</th><th class="r">Margin</th>
+        <th class="r">Addl. revenue needed</th><th class="r">Cost saving needed</th>
+        <th class="r">WHT</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody id="ov-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div id="page-drilldown" class="page">
+    <div class="drill-controls">
+      <div class="drill-leg" id="dd-leg-name">—</div>
+      <select id="dd-leg-select" onchange="onLegChange()"></select>
+      <select id="dd-ver-select" onchange="onVersionChange()"></select>
+      <span id="dd-badge" class="pill blue" style="display:none">Current</span>
+    </div>
+    <div id="dd-insight"></div>
+    <div class="kpi-row kpi-row-6" id="dd-kpis"></div>
+    <div class="two-col">
+      <div>
+        <div class="section-label">Revenue & deductions</div>
+        <div class="card"><table class="pnl-table" id="dd-pnl"></table></div>
+      </div>
+      <div>
+        <div class="section-label">Planning targets</div>
+        <div class="card">
+          <div class="slider-row">
+            <div class="slider-label">Target margin</div>
+            <input type="range" id="dd-slider" min="10" max="60" value="30" oninput="onDdSlider(this.value)">
+            <div class="slider-val" id="dd-slider-val">30%</div>
+          </div>
+          <div class="planning-grid" id="dd-planning"></div>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Cost breakdown</div>
+    <div class="card" id="dd-costs"></div>
+  </div>
+</div>
+
+<script>
+let API_KEY='', BASE_ID='';
+let allVersions=[], tourLegs=[];
+let ovTarget=0.30, ddTarget=0.30;
+let selLegId=null, selVersion=null;
+
+const D=(n,dp=0)=>n==null?'—':'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp});
+const P=n=>n==null?'—':(n*100).toFixed(1)+'%';
+const DASH='<span class="dash-val">—</span>';
+
+async function submitAuth(){
+  const k=document.getElementById('input-key').value.trim();
+  const b=document.getElementById('input-base').value.trim();
+  const err=document.getElementById('auth-error');
+  if(!k||!b){err.textContent='Both fields are required.';err.style.display='block';return;}
+  API_KEY=k; BASE_ID=b;
+  document.getElementById('auth-gate').classList.add('hidden');
+  document.getElementById('loading').classList.remove('hidden');
+  await loadData();
+}
+
+async function fetchAll(table,fields=[]){
+  let recs=[],offset=null;
+  do{
+    const p=new URLSearchParams();
+    fields.forEach(f=>p.append('fields[]',f));
+    if(offset)p.set('offset',offset);
+    const res=await fetch(`https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(table)}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
+    if(!res.ok)throw new Error(`Airtable ${res.status}: ${await res.text()}`);
+    const d=await res.json(); recs=recs.concat(d.records); offset=d.offset;
+  }while(offset);
+  return recs;
+}
+
+function setLoad(pct,txt){
+  document.getElementById('load-bar').style.width=pct+'%';
+  document.getElementById('load-text').textContent=txt;
+}
+
+async function loadData(){
+  try{
+    setLoad(10,'Loading tour legs');
+    const lr=await fetchAll('Tour Legs',['Name']);
+    tourLegs=lr.map(r=>({id:r.id,name:r.fields['Name']||r.id}));
+    setLoad(40,'Loading budget versions');
+    const vr=await fetchAll('Budget Versions',[
+      'Name','Version','Is Current?','Version Date','Version Notes','Tour Leg',
+      'Gross Fee (USD)','Commission %','Marketing Alloc %','Salary Alloc %','Ops Alloc %',
+      'Flights Budget','Hotels Budget','Wages Budget','Production Budget','Misc Budget',
+      'Flights Notes','Hotels Notes','Wages Notes','Production Notes','Misc Notes',
+      'WHT (USD)','Target Margin %','Flights Actual (USD)','Hotels Actual (USD)'
+    ]);
+    allVersions=vr.map(r=>({id:r.id,...r.fields}));
+    setLoad(100,'Ready');
+    await new Promise(r=>setTimeout(r,200));
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    buildOverview(); buildDrillControls();
+  }catch(e){
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('auth-gate').classList.remove('hidden');
+    const err=document.getElementById('auth-error');
+    err.textContent='Connection failed: '+e.message; err.style.display='block';
+  }
+}
+
+function compute(v,tgt){
+  const gross=v['Gross Fee (USD)']||0, cp=v['Commission %']||0.10;
+  const mp=v['Marketing Alloc %']||0.05, sp=v['Salary Alloc %']||0.05, op=v['Ops Alloc %']||0.042;
+  const ap=mp+sp+op;
+  const fl=v['Flights Budget']||0, ht=v['Hotels Budget']||0, wg=v['Wages Budget']||0;
+  const pr=v['Production Budget']||0, ms=v['Misc Budget']||0, wht=v['WHT (USD)']||0;
+  const t=tgt!=null?tgt:(v['Target Margin %']||0.30);
+  const comm=gross*cp, alloc=gross*ap, costs=fl+ht+wg+pr+ms;
+  const net=gross-comm-alloc-costs, margin=gross>0?net/gross:0;
+  const tnet=gross*t, gap=tnet-net, denom=1-cp-ap-t;
+  const addRev=gap>0&&denom!==0?gap/denom:0, costSav=gap>0?gap:0;
+  const flAct=v['Flights Actual (USD)']||0, htAct=v['Hotels Actual (USD)']||0;
+  return{gross,cp,mp,sp,op,ap,comm,alloc,fl,ht,wg,pr,ms,wht,costs,net,margin,tnet,gap,addRev,costSav,t,flAct,htAct};
+}
+
+function pill(m,t){
+  if(m>=t)return'<span class="pill green">On target</span>';
+  if(m>=t-0.05)return'<span class="pill amber">Below target</span>';
+  return'<span class="pill red">Significantly below</span>';
+}
+
+function varStr(v){
+  if(v==null)return DASH;
+  if(v>0)return`<span class="var-pos">+${D(v)}</span>`;
+  if(v<0)return`<span class="var-neg">-${D(Math.abs(v))}</span>`;
+  return D(v);
+}
+
+function buildOverview(){
+  const cvs=allVersions.filter(v=>v['Is Current?']);
+  let tG=0,tC=0,tN=0;
+  const rows=cvs.map(v=>{
+    const c=compute(v,ovTarget); tG+=c.gross; tC+=c.costs; tN+=c.net;
+    const lid=(v['Tour Leg']||[])[0]||null;
+    const lname=lid?(tourLegs.find(l=>l.id===lid)?.name||v['Name']):v['Name']||'—';
+    return{v,c,lid,lname};
+  });
+  const bm=tG>0?tN/tG:0;
+  const kc=bm>=ovTarget?'green':bm>=ovTarget-0.05?'amber':'red';
+  document.getElementById('ov-kpis').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Total gross fees</div><div class="kpi-value">${D(tG)}</div><div class="kpi-sub">${cvs.length} leg${cvs.length!==1?'s':''}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tour costs</div><div class="kpi-value">${D(tC)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Net profit</div><div class="kpi-value">${D(tN)}</div></div>
+    <div class="kpi-card ${kc}"><div class="kpi-label">Blended margin</div><div class="kpi-value ${kc}">${P(bm)}</div><div class="kpi-sub ${kc}">Target: ${P(ovTarget)}</div></div>
+  `;
+  document.getElementById('ov-tbody').innerHTML=rows.map(({c,lid,lname})=>`
+    <tr>
+      <td class="leg-name">${lname}</td>
+      <td class="num">${D(c.gross)}</td><td class="num">${D(c.comm)}</td>
+      <td class="num">${D(c.alloc)}</td><td class="num">${D(c.costs)}</td>
+      <td class="num">${D(c.net)}</td><td class="num">${P(c.margin)}</td>
+      <td class="num">${c.addRev>0?D(c.addRev):DASH}</td>
+      <td class="num">${c.costSav>0?D(c.costSav):DASH}</td>
+      <td class="num">${c.wht>0?D(c.wht):DASH}</td>
+      <td>${pill(c.margin,ovTarget)}</td>
+      <td><button class="drill-btn" onclick="drillTo('${lid}')">Drill →</button></td>
+    </tr>`).join('')||'<tr><td colspan="12" style="text-align:center;padding:20px;color:var(--g400)">No current budget versions found</td></tr>';
+}
+
+function onOvSlider(v){ovTarget=v/100;document.getElementById('ov-slider-val').textContent=v+'%';buildOverview();}
+
+function buildDrillControls(){
+  const sel=document.getElementById('dd-leg-select');
+  const seen=new Set(),legs=[];
+  allVersions.forEach(v=>(v['Tour Leg']||[]).forEach(lid=>{
+    if(!seen.has(lid)){seen.add(lid);legs.push({id:lid,name:tourLegs.find(l=>l.id===lid)?.name||lid});}
+  }));
+  sel.innerHTML=legs.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  if(legs.length){selLegId=legs[0].id;buildVersionSelect(selLegId);buildDrill();}
+}
+
+function buildVersionSelect(lid){
+  const vers=allVersions.filter(v=>(v['Tour Leg']||[]).includes(lid));
+  vers.sort((a,b)=>({'Current':0,'V3':1,'V2':2,'V1':3}[a['Version']]??9)-({'Current':0,'V3':1,'V2':2,'V1':3}[b['Version']]??9));
+  const sel=document.getElementById('dd-ver-select');
+  sel.innerHTML=vers.map(v=>`<option value="${v.id}">${v['Version']||'—'}</option>`).join('');
+  const cur=vers.find(v=>v['Is Current?']);
+  selVersion=cur||vers[0]||null;
+  if(selVersion)sel.value=selVersion.id;
+}
+
+function onLegChange(){selLegId=document.getElementById('dd-leg-select').value;buildVersionSelect(selLegId);buildDrill();}
+function onVersionChange(){selVersion=allVersions.find(v=>v.id===document.getElementById('dd-ver-select').value);buildDrill();}
+function onDdSlider(v){ddTarget=v/100;document.getElementById('dd-slider-val').textContent=v+'%';buildDrill();}
+
+function drillTo(lid){
+  if(!lid||lid==='null')return;
+  showPage('drilldown',document.querySelectorAll('.nav-tab')[1]);
+  document.getElementById('dd-leg-select').value=lid;
+  selLegId=lid;buildVersionSelect(lid);buildDrill();
+}
+
+function buildDrill(){
+  if(!selVersion)return;
+  const v=selVersion, c=compute(v,ddTarget);
+  const lid=(v['Tour Leg']||[])[0]||null;
+  const lname=lid?(tourLegs.find(l=>l.id===lid)?.name||v['Name']):v['Name']||'—';
+  const at=c.margin>=ddTarget;
+  document.getElementById('dd-leg-name').textContent=lname;
+  document.getElementById('dd-badge').style.display=v['Is Current?']?'inline-block':'none';
+
+  let ic='',it='';
+  if(at){ic='green';it=`<strong>${lname}</strong> is at or above the ${P(ddTarget)} target. No additional revenue or cost savings required at current budget.`;}
+  else{const gap=ddTarget-c.margin;ic=gap<0.05?'amber':'red';it=`<strong>${lname}</strong> is ${P(gap)} below the ${P(ddTarget)} target. Needs either <strong>${D(c.addRev)}</strong> in additional fees or <strong>${D(c.costSav)}</strong> in tour cost reductions.`;}
+  document.getElementById('dd-insight').innerHTML=`<div class="insight-banner ${ic}">${it}</div>`;
+
+  document.getElementById('dd-kpis').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Gross fee</div><div class="kpi-value">${D(c.gross)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tour costs</div><div class="kpi-value">${D(c.costs)}</div></div>
+    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">Net profit</div><div class="kpi-value ${at?'green':'red'}">${D(c.net)}</div></div>
+    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">Margin</div><div class="kpi-value ${at?'green':'red'}">${P(c.margin)}</div></div>
+    <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Addl. revenue for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="kpi-sub">in additional fees</div></div>
+    <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Cost saving for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="kpi-sub">holding revenue constant</div></div>
+  `;
+
+  document.getElementById('dd-pnl').innerHTML=`
+    <tr><td class="pnl-name">Gross fee</td><td class="pnl-pct">—</td><td class="pnl-amt">${D(c.gross)}</td></tr>
+    <tr><td class="pnl-name">Commission (Wasserman)</td><td class="pnl-pct">${P(c.cp)}</td><td class="pnl-amt neg">-${D(c.comm)}</td></tr>
+    <tr><td class="pnl-name">Allocations (subtotal)</td><td class="pnl-pct">${P(c.ap)}</td><td class="pnl-amt neg">-${D(c.alloc)}</td></tr>
+    <tr><td class="pnl-indent">— Marketing</td><td class="pnl-pct">${P(c.mp)}</td><td class="pnl-amt">${D(c.gross*c.mp)}</td></tr>
+    <tr><td class="pnl-indent">— Salary (off-road)</td><td class="pnl-pct">${P(c.sp)}</td><td class="pnl-amt">${D(c.gross*c.sp)}</td></tr>
+    <tr><td class="pnl-indent">— Ops</td><td class="pnl-pct">${P(c.op)}</td><td class="pnl-amt">${D(c.gross*c.op)}</td></tr>
+    <tr><td class="pnl-name">Tour costs</td><td class="pnl-pct">—</td><td class="pnl-amt neg">-${D(c.costs)}</td></tr>
+    <tr class="pnl-total"><td class="pnl-name">Net profit</td><td class="pnl-pct">${P(c.margin)}</td><td class="pnl-amt">${D(c.net)}</td></tr>
+    ${c.wht>0?`<tr class="pnl-wht"><td class="pnl-name">WHT (ex-line)</td><td class="pnl-pct">—</td><td class="pnl-amt">-${D(c.wht)}</td></tr><tr class="pnl-total"><td class="pnl-name">Net profit after WHT</td><td class="pnl-pct">—</td><td class="pnl-amt">${D(c.net-c.wht)}</td></tr>`:''}
+  `;
+
+  document.getElementById('dd-planning').innerHTML=`
+    <div class="pm-cell"><div class="pm-label">Target margin</div><div class="pm-value">${P(ddTarget)}</div></div>
+    <div class="pm-cell"><div class="pm-label">Target net profit</div><div class="pm-value">${D(c.tnet)}</div></div>
+    <div class="pm-cell"><div class="pm-label">Gap to target</div><div class="pm-value ${at?'green':'red'}">${at?'—':D(c.gap)}</div><div class="pm-note">${at?'On target':'Positive = below target'}</div></div>
+    <div class="pm-cell"><div class="pm-label">Addl. revenue needed</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="pm-note">Accounts for commission & alloc on new revenue</div></div>
+    <div class="pm-cell"><div class="pm-label">Cost saving needed</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="pm-note">Holding revenue constant</div></div>
+    <div class="pm-cell"><div class="pm-label">At target?</div><div class="pm-value ${at?'green':'red'}">${at?'Yes':'No'}</div></div>
+  `;
+
+  const cats=[
+    {key:'Flights',budget:c.fl,actual:c.flAct,hasAct:true,notes:v['Flights Notes'],
+     coa:[{n:'T-A-F-999 — Artist flights'},{n:'T-M-F-xxx — Management flights'},{n:'T-P-F-xxx — Production flights'},{n:'T-G-F-xxx — Crew flights'}]},
+    {key:'Hotels',budget:c.ht,actual:c.htAct||null,hasAct:false,notes:v['Hotels Notes'],
+     coa:[{n:'T-A-H-xxx — Artist hotels'},{n:'T-M-H-xxx — Management hotels'},{n:'T-G-H-xxx — Crew hotels'}]},
+    {key:'Wages',budget:c.wg,actual:null,hasAct:false,notes:v['Wages Notes'],
+     coa:[{n:'On-road day rates'},{n:'Per diem'}]},
+    {key:'Production',budget:c.pr,actual:null,hasAct:false,notes:v['Production Notes'],
+     coa:[{n:'T-P-E-xxx — Equipment & freight'},{n:'T-P-O-xxx — Other production'}]},
+    {key:'Misc',budget:c.ms,actual:null,hasAct:false,notes:v['Misc Notes'],
+     coa:[{n:'Ground transport'},{n:'Visa & travel docs'},{n:'Recharges & sundry'}]},
+  ];
+
+  document.getElementById('dd-costs').innerHTML=
+    `<div class="cost-col-header" style="padding-left:var(--cp)">
+      <span class="cost-col-label">Category</span>
+      <span class="cost-col-label">Budget</span>
+      <span class="cost-col-label">Actual</span>
+      <span class="cost-col-label">Variance</span>
+      <span class="cost-col-label">Status</span>
+    </div>`+
+    cats.map((cat,i)=>{
+      const variance=cat.actual!=null?cat.budget-cat.actual:null;
+      const sp=variance!=null?(variance>=0?'<span class="pill green">Under</span>':'<span class="pill red">Over budget</span>'):'<span class="pill gray">Pending</span>';
+      return`
+        <div class="cost-cat-row" onclick="toggleCat(${i})">
+          <div class="cost-cat-name">
+            <span class="cost-chevron" id="chev-${i}">▶</span>
+            ${cat.key}
+            ${!cat.hasAct?'<span class="pill gray" style="font-size:7px">Actuals pending</span>':''}
+          </div>
+          <div class="cost-cat-num">${D(cat.budget)}</div>
+          <div class="cost-cat-num">${cat.actual!=null?D(cat.actual):DASH}</div>
+          <div class="cost-cat-num">${varStr(variance)}</div>
+          <div>${sp}</div>
+        </div>
+        <div class="cost-body" id="cat-${i}">
+          ${cat.notes?`<div class="version-notes"><div class="version-notes-tag">Version notes</div>${cat.notes}</div>`:''}
+          <div class="cost-col-header">
+            <span class="cost-col-label">Account / description</span>
+            <span class="cost-col-label">Budget</span>
+            <span class="cost-col-label">Actual</span>
+            <span class="cost-col-label">Variance</span>
+            <span class="cost-col-label">Status</span>
+          </div>
+          ${cat.coa.map(row=>`
+            <div class="cost-coa-row">
+              <span class="cost-coa-name">${row.n}</span>
+              <span class="cost-coa-num">${DASH}</span>
+              <span class="cost-coa-num">${DASH}</span>
+              <span class="cost-coa-num">${DASH}</span>
+              <span></span>
+            </div>`).join('')}
+        </div>`;
+    }).join('')+
+    `<div class="cost-totals">
+      <span class="cost-totals-label">Tour costs total</span>
+      <span class="cost-totals-num">${D(c.costs)}</span>
+      <span class="cost-totals-num">${c.flAct>0?D(c.flAct):DASH}</span>
+      <span class="cost-totals-num">${varStr(c.flAct>0?c.costs-c.flAct:null)}</span>
+      <span></span>
+    </div>
+    ${c.wht>0?`<div style="padding:9px var(--cp);border-top:0.5px solid var(--g100);font-style:italic;color:var(--g600);font-size:11px;display:flex;justify-content:space-between"><span>WHT (ex-line)</span><span style="font-family:var(--fd)">-${D(c.wht)}</span></div>`:''}`;
+}
+
+function toggleCat(i){document.getElementById('cat-'+i).classList.toggle('open');document.getElementById('chev-'+i).classList.toggle('open');}
+
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+}
+</script>
+</body>
+</html>
