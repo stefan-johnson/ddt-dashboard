@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDT Budget Dashboard — GigCtrl</title>
+<style>
+:root {
+  --black:#1A1A1A; --g900:#2C2C2A; --g600:#5F5E5A; --g400:#888780;
+  --g200:#B4B2A9; --g100:#D3D1C7; --g50:#F7F6F2; --white:#FDFCFB;
+  --green50:#EAF3DE; --green100:#C0DD97; --green600:#3B6D11; --green800:#27500A;
+  --amber50:#FAEEDA; --amber100:#FAC775; --amber600:#854F0B; --amber800:#633806;
+  --red50:#FCEBEB; --red100:#F7C1C1; --red600:#A32D2D; --red800:#791F1F;
+  --blue50:#E6F1FB; --blue100:#B5D4F4; --blue600:#185FA5; --blue800:#0C447C;
+  --fd:'Courier New',Courier,monospace;
+  --fu:Helvetica,Arial,sans-serif;
+  --pm:24px; --cp:16px; --cg:12px; --r:12px;
+}
+
+/* DARK MODE — system default */
+@media(prefers-color-scheme:dark){
+  :root{
+    --black:#F0EFE8; --g900:#D8D6CE; --g600:#9E9C94; --g400:#6B6A65;
+    --g200:#3A3935; --g100:#2A2A27; --g50:#1C1C1A; --white:#242422;
+    --green50:#1A2B10; --green100:#2A4A1A; --green600:#7DB84A; --green800:#A8D878;
+    --amber50:#2B1E08; --amber100:#4A3010; --amber600:#D4882A; --amber800:#F0B050;
+    --red50:#2B1010; --red100:#4A1A1A; --red600:#E05555; --red800:#F08080;
+    --blue50:#0C1E30; --blue100:#183050; --blue600:#5599DD; --blue800:#88BBEE;
+  }
+}
+
+/* DARK MODE — manual override (force dark) */
+[data-theme="dark"]{
+  --black:#F0EFE8; --g900:#D8D6CE; --g600:#9E9C94; --g400:#6B6A65;
+  --g200:#3A3935; --g100:#2A2A27; --g50:#1C1C1A; --white:#242422;
+  --green50:#1A2B10; --green100:#2A4A1A; --green600:#7DB84A; --green800:#A8D878;
+  --amber50:#2B1E08; --amber100:#4A3010; --amber600:#D4882A; --amber800:#F0B050;
+  --red50:#2B1010; --red100:#4A1A1A; --red600:#E05555; --red800:#F08080;
+  --blue50:#0C1E30; --blue100:#183050; --blue600:#5599DD; --blue800:#88BBEE;
+}
+
+/* LIGHT MODE — manual override (force light, overrides system dark) */
+[data-theme="light"]{
+  --black:#1A1A1A; --g900:#2C2C2A; --g600:#5F5E5A; --g400:#888780;
+  --g200:#B4B2A9; --g100:#D3D1C7; --g50:#F7F6F2; --white:#FDFCFB;
+  --green50:#EAF3DE; --green100:#C0DD97; --green600:#3B6D11; --green800:#27500A;
+  --amber50:#FAEEDA; --amber100:#FAC775; --amber600:#854F0B; --amber800:#633806;
+  --red50:#FCEBEB; --red100:#F7C1C1; --red600:#A32D2D; --red800:#791F1F;
+  --blue50:#E6F1FB; --blue100:#B5D4F4; --blue600:#185FA5; --blue800:#0C447C;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--g50);color:var(--black);font-family:var(--fu);font-size:13px;min-height:100vh;}
+
+/* AUTH */
+#auth-gate{position:fixed;inset:0;background:var(--g50);display:flex;align-items:center;justify-content:center;z-index:200;}
+#auth-gate.hidden{display:none;}
+.auth-card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);padding:32px;width:400px;}
+.auth-client{font-size:11px;color:var(--g400);margin-bottom:24px;}
+.auth-field{margin-bottom:14px;}
+.auth-label{display:block;font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:5px;}
+.auth-input{width:100%;font-family:var(--fd);font-size:12px;color:var(--black);background:var(--g50);border:0.5px solid var(--g100);border-radius:6px;padding:9px 10px;outline:none;}
+.auth-input:focus{border-color:var(--g400);}
+.auth-error{font-size:11px;color:var(--red600);margin-bottom:10px;display:none;}
+.auth-btn{width:100%;background:var(--black);color:var(--white);font-family:var(--fu);font-weight:bold;font-size:12px;padding:11px;border:none;border-radius:6px;cursor:pointer;}
+.auth-btn:hover{background:var(--g900);}
+.auth-note{margin-top:12px;font-size:10px;color:var(--g400);line-height:1.5;}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:var(--g50);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:100;transition:opacity .3s;}
+#loading.hidden{opacity:0;pointer-events:none;}
+.load-label{font-size:10px;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;}
+.load-bar{width:160px;height:1px;background:var(--g100);}
+.load-bar-inner{height:100%;background:var(--black);width:0%;transition:width .3s;}
+
+/* APP */
+#app{display:none;}
+#app.visible{display:block;}
+
+/* HEADER */
+header{background:var(--white);border-bottom:0.5px solid var(--g100);padding:0 var(--pm);display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50;}
+.hdr-left{display:flex;align-items:center;gap:14px;}
+.hdr-div{width:0.5px;height:20px;background:var(--g100);}
+.hdr-client{font-size:11px;color:var(--g400);}
+.hdr-client strong{color:var(--black);}
+.hdr-home{background:none;border:none;padding:0;cursor:pointer;font-size:11px;color:var(--g400);font-family:var(--fu);text-align:left;}
+.hdr-home strong{color:var(--black);}
+.hdr-home:hover strong{text-decoration:underline;}
+.hdr-home:hover{color:var(--g600);}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+nav{display:flex;gap:2px;}
+.nav-tab{padding:6px 14px;border-radius:6px;border:none;background:transparent;color:var(--g400);font-family:var(--fu);font-size:12px;cursor:pointer;transition:all .1s;}
+.nav-tab:hover{color:var(--black);background:var(--g50);}
+.nav-tab.active{background:var(--g50);color:var(--black);font-weight:bold;}
+/* COMPACT SLIDER PILL */
+.slider-pill{display:flex;align-items:center;gap:8px;background:var(--g50);border:0.5px solid var(--g100);border-radius:999px;padding:4px 12px 4px 10px;}
+.slider-pill-label{font-size:10px;color:var(--g600);white-space:nowrap;}
+.slider-pill input[type=range]{width:90px;-webkit-appearance:none;height:1px;background:var(--g200);outline:none;}
+.slider-pill input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--black);cursor:pointer;}
+.slider-pill-val{font-family:var(--fd);font-weight:bold;font-size:11px;color:var(--black);min-width:26px;text-align:right;}
+
+/* THEME TOGGLE */
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;border:0.5px solid var(--g100);background:transparent;cursor:pointer;color:var(--g600);transition:background .15s,color .15s,border-color .15s;flex-shrink:0;}
+.theme-toggle:hover{background:var(--g50);color:var(--black);}
+.theme-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+.page{display:none;padding:var(--pm);max-width:1320px;margin:0 auto;}
+.page.active{display:block;}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--cg);margin-bottom:var(--cg);}
+.kpi-row-6{grid-template-columns:repeat(6,1fr);}
+.kpi-card{background:var(--g50);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);display:flex;flex-direction:column;}
+.kpi-card.green{background:var(--green50);}
+.kpi-card.amber{background:var(--amber50);}
+.kpi-card.red{background:var(--red50);}
+.kpi-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.08em;margin-bottom:6px;}
+.kpi-value{font-family:var(--fd);font-size:16px;font-weight:bold;color:var(--black);line-height:1.1;}
+.kpi-value.green{color:var(--green800);}
+.kpi-value.amber{color:var(--amber800);}
+.kpi-value.red{color:var(--red800);}
+.kpi-sub{font-size:10px;color:var(--g400);margin-top:3px;min-height:16px;}
+.kpi-sub.green{color:var(--green600);}
+
+/* SLIDER - drill-down inline only */
+.slider-row{display:flex;align-items:center;gap:12px;padding:10px var(--cp);border-bottom:0.5px solid var(--g100);}
+.slider-label{font-size:11px;color:var(--g600);width:110px;flex-shrink:0;}
+.slider-row input[type=range]{flex:1;-webkit-appearance:none;height:1px;background:var(--g100);outline:none;}
+.slider-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--black);cursor:pointer;}
+.slider-val{font-family:var(--fd);font-weight:bold;font-size:13px;color:var(--black);width:38px;text-align:right;}
+
+/* SECTION */
+.section-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.1em;margin:20px 0 8px;}
+
+/* CARD */
+.card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);overflow:hidden;margin-bottom:var(--cg);}
+
+/* DATA TABLE */
+.data-table{width:100%;border-collapse:collapse;background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);overflow:hidden;}
+.data-table th{padding:9px 12px;text-align:left;font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);background:var(--g50);border-bottom:0.5px solid var(--g100);}
+.data-table th.r{text-align:right;}
+.data-table td{padding:9px 12px;border-bottom:0.5px solid var(--g100);font-size:12px;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--g50);}
+.data-table td.num{font-family:var(--fd);font-size:12px;text-align:right;}
+.data-table td.leg-name{font-weight:bold;}
+
+/* PILLS */
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-family:var(--fu);font-size:7.5px;font-weight:bold;white-space:nowrap;}
+.pill.green{background:var(--green50);color:var(--green800);}
+.pill.amber{background:var(--amber50);color:var(--amber800);}
+.pill.red{background:var(--red50);color:var(--red800);}
+.pill.gray{background:var(--g50);color:var(--g600);}
+.pill.blue{background:var(--blue50);color:var(--blue800);}
+
+/* INSIGHT */
+.insight-banner{border-radius:var(--r);border-left:2px solid var(--g400);padding:12px var(--cp);margin-bottom:var(--cg);font-size:12px;color:var(--g600);line-height:1.5;}
+.insight-banner.green{border-left:2px solid var(--green600);background:var(--green50);color:var(--green800);}
+.insight-banner.amber{border-left:2px solid var(--amber600);background:var(--amber50);color:var(--amber800);}
+.insight-banner.red{border-left:2px solid var(--red600);background:var(--red50);color:var(--red800);}
+
+/* DRILL CONTROLS */
+.drill-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.drill-leg{font-family:var(--fu);font-weight:bold;font-size:14px;}
+select{font-family:var(--fu);font-size:11px;color:var(--g600);background:var(--white);border:0.5px solid var(--g100);border-radius:6px;padding:5px 8px;outline:none;cursor:pointer;}
+select:focus{border-color:var(--g400);}
+
+/* TWO COL */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:var(--cg);}
+
+/* PNL */
+.pnl-table{width:100%;border-collapse:collapse;}
+.pnl-table td{padding:9px var(--cp);border-bottom:0.5px solid var(--g100);font-size:12px;}
+.pnl-table tr:last-child td{border-bottom:none;}
+.pnl-name{color:var(--g600);}
+.pnl-indent{color:var(--g400);padding-left:32px!important;font-family:var(--fd);font-size:11px;}
+.pnl-pct{text-align:right;font-family:var(--fd);font-size:11px;color:var(--g400);}
+.pnl-amt{text-align:right;font-family:var(--fd);font-size:12px;}
+.pnl-amt.neg{color:var(--red600);}
+.pnl-total td{border-top:0.5px solid var(--g100);background:var(--g50);}
+.pnl-total .pnl-name{font-weight:bold;color:var(--black);}
+.pnl-total .pnl-amt{font-weight:bold;color:var(--black);}
+.pnl-wht td{font-style:italic;}
+.pnl-wht .pnl-name,.pnl-wht .pnl-amt{color:var(--g600);}
+
+/* PLANNING */
+.planning-grid{display:grid;grid-template-columns:1fr 1fr;}
+.pm-cell{padding:12px var(--cp);border-bottom:0.5px solid var(--g100);border-right:0.5px solid var(--g100);}
+.pm-cell:nth-child(even){border-right:none;}
+.pm-cell:nth-last-child(-n+2){border-bottom:none;}
+.pm-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.08em;margin-bottom:4px;}
+.pm-value{font-family:var(--fd);font-weight:bold;font-size:14px;color:var(--black);}
+.pm-value.green{color:var(--green800);}
+.pm-value.amber{color:var(--amber800);}
+.pm-value.red{color:var(--red800);}
+.pm-note{font-size:10px;color:var(--g400);margin-top:2px;}
+
+/* COST BREAKDOWN */
+.cost-cat-row{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;align-items:center;padding:9px var(--cp);background:var(--g50);border-bottom:0.5px solid var(--g100);cursor:pointer;}
+.cost-cat-row:hover{background:var(--g100);}
+.cost-cat-name{display:flex;align-items:center;gap:8px;font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
+.cost-chevron{font-size:8px;color:var(--g400);transition:transform .15s;user-select:none;}
+.cost-chevron.open{transform:rotate(90deg);}
+.cost-cat-num{font-family:var(--fd);font-size:12px;text-align:right;color:var(--black);font-weight:bold;}
+.cost-body{display:none;}
+.cost-body.open{display:block;}
+.version-notes{padding:8px var(--cp) 8px 40px;border-bottom:0.5px dashed var(--g100);border-left:2px solid var(--blue600);background:var(--blue50);font-size:8.5px;color:var(--g600);line-height:1.5;}
+.version-notes-tag{font-family:var(--fu);font-size:7px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--blue600);margin-bottom:2px;}
+.cost-col-header{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;padding:6px var(--cp) 6px 40px;border-bottom:0.5px solid var(--g100);background:var(--g50);}
+.cost-col-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);text-align:right;}
+.cost-col-label:first-child{text-align:left;}
+.cost-coa-row{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;align-items:center;padding:9px var(--cp) 9px 40px;border-bottom:0.5px solid var(--g100);}
+.cost-coa-row:last-child{border-bottom:none;}
+.cost-coa-name{font-family:var(--fd);font-size:8.5px;color:var(--g600);}
+.cost-coa-num{font-family:var(--fd);font-size:8.5px;text-align:right;color:var(--g600);}
+.cost-totals{padding:10px var(--cp);display:grid;grid-template-columns:1fr 110px 110px 100px 80px;border-top:0.5px solid var(--g100);background:var(--g50);}
+.cost-totals-label{font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
+.cost-totals-num{font-family:var(--fd);font-weight:bold;font-size:12px;text-align:right;color:var(--black);}
+.var-pos{color:var(--green600);}
+.var-neg{color:var(--red600);}
+.dash-val{color:var(--g400);font-family:var(--fd);font-size:8.5px;}
+
+/* LOGO — invert in dark mode */
+.logo-wrap{display:flex;align-items:center;}
+[data-theme="dark"] .logo-wrap svg,
+[data-theme="dark"] .auth-logo svg{ filter:invert(1); }
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .logo-wrap svg,
+  :root:not([data-theme="light"]) .auth-logo svg{ filter:invert(1); }
+}
+
+/* LEG CARDS — hidden by default, shown on mobile via media query */
+#ov-leg-cards{display:none;}
+
+/* LEG FILTER */
+.leg-filter-wrap{position:relative;display:inline-block;}
+.leg-filter-trigger{display:flex;align-items:center;gap:6px;background:var(--white);border:0.5px solid var(--g100);border-radius:6px;padding:7px 12px;font-family:var(--fu);font-size:11px;color:var(--g600);cursor:pointer;}
+.leg-filter-trigger:hover{border-color:var(--g400);}
+.leg-filter-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:240px;background:var(--white);border:0.5px solid var(--g100);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.08);z-index:100;padding:6px;}
+.leg-filter-panel.open{display:block;}
+.leg-filter-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:4px;cursor:pointer;font-family:var(--fu);font-size:12px;color:var(--black);}
+.leg-filter-item:hover{background:var(--g50);}
+.leg-filter-item input[type=checkbox]{accent-color:var(--black);width:13px;height:13px;cursor:pointer;flex-shrink:0;}
+.leg-filter-divider{height:0.5px;background:var(--g100);margin:4px 0;}
+
+/* EXPANDABLE KPI CARDS */
+.kpi-expandable{cursor:pointer;transition:box-shadow .15s;}
+.kpi-expandable:hover{box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.kpi-card-header{display:flex;justify-content:space-between;align-items:flex-start;}
+.kpi-chevron{color:var(--g400);transition:transform .2s;flex-shrink:0;margin-top:1px;}
+.kpi-expandable.expanded .kpi-chevron{transform:rotate(180deg);}
+.kpi-exp-body{display:none;margin-top:10px;}
+.kpi-exp-body.open{display:block;}
+.kpi-exp-body::before{content:'';display:block;height:0.5px;background:var(--g100);margin-bottom:10px;}
+.kpi-exp-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;}
+.kpi-exp-label{font-family:var(--fu);font-size:9px;color:var(--g400);}
+.kpi-exp-val{font-family:var(--fd);font-size:11px;color:var(--g600);}
+
+/* LEG CARDS */
+.leg-card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);margin-bottom:var(--cg);}
+.leg-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.leg-card-name{font-family:var(--fu);font-weight:bold;font-size:13px;color:var(--black);}
+.leg-card-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 16px;margin-bottom:12px;}
+.leg-card-item{}
+.leg-card-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:2px;}
+.leg-card-value{font-family:var(--fd);font-size:13px;font-weight:bold;color:var(--black);}
+.leg-card-value.green{color:var(--green800);}
+.leg-card-value.amber{color:var(--amber800);}
+.leg-card-value.red{color:var(--red800);}
+.leg-card-footer{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:0.5px solid var(--g100);}
+@media(max-width:640px){.leg-card-grid{grid-template-columns:repeat(2,1fr);}}
+
+/* COLLAPSIBLE SECTIONS */
+.ov-section{margin-bottom:var(--cg);}
+.ov-section-hdr{width:100%;display:flex;align-items:center;gap:8px;background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);padding:12px var(--cp);cursor:pointer;text-align:left;}
+.ov-section-hdr:hover{background:var(--g50);}
+.ov-section-title{font-family:var(--fu);font-weight:bold;font-size:12px;color:var(--black);flex:1;}
+.ov-section-meta{font-family:var(--fd);font-size:11px;color:var(--g400);}
+.ov-section-chev{color:var(--g400);transition:transform .2s;flex-shrink:0;}
+.ov-section-chev.open{transform:rotate(180deg);}
+.ov-section-body{display:none;padding-top:var(--cg);}
+.ov-section-body.open{display:block;}
+
+/* SALARY MOBILE CARDS */
+.sal-card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);margin-bottom:var(--cg);}
+.sal-card-name{font-family:var(--fu);font-weight:bold;font-size:12px;color:var(--black);margin-bottom:2px;}
+.sal-card-role{font-family:var(--fu);font-size:10px;color:var(--g400);margin-bottom:10px;}
+.sal-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;}
+.sal-card-item .sal-card-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:2px;}
+.sal-card-item .sal-card-val{font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--black);}
+
+.sal-total-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px var(--cp);background:var(--g50);border-radius:var(--r);margin-top:4px;margin-bottom:4px;gap:12px;flex-wrap:wrap;}
+.sal-card-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 12px;}
+@media(max-width:640px){.sal-card-grid{grid-template-columns:repeat(2,1fr);}}
+
+/* SALARY TABLE */
+.sal-section-label{font-family:var(--fu);font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:8px;}
+.sal-table-wrap{overflow-x:auto;}
+.sal-table{width:100%;border-collapse:collapse;font-size:12px;}
+.sal-th{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);padding:6px 12px;border-bottom:0.5px solid var(--g100);text-align:left;white-space:nowrap;}
+.sal-th-r{text-align:right;}
+.sal-table td{padding:9px 12px;border-bottom:0.5px solid var(--g100);color:var(--black);font-family:var(--fu);font-size:12px;}
+.sal-table tr:last-child td{border-bottom:none;}
+.sal-role{color:var(--g600);}
+.sal-num{text-align:right;font-family:var(--fd);}
+.sal-total td{background:var(--g50);font-weight:bold;border-top:0.5px solid var(--g100) !important;}
+.sal-muted td{color:var(--g400);}
+.sal-funding{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;gap:12px;flex-wrap:wrap;}
+.sal-funding-label{font-family:var(--fu);font-size:11px;color:var(--g600);}
+.sal-funding-val{font-family:var(--fd);font-size:12px;font-weight:bold;}
+.sal-funding-val.green{color:var(--green800);}
+.sal-funding-val.red{color:var(--red800);}
+@media(max-width:640px){
+  .sal-th:nth-child(n+4),.sal-table td:nth-child(n+4){display:none;}
+}
+
+/* DISCLAIMER FOOTER */
+.disclaimer{padding:20px var(--pm) 32px;font-family:var(--fu);font-size:10px;color:var(--g400);line-height:1.6;border-top:0.5px solid var(--g100);margin-top:8px;}
+
+/* PAGE SLIDER ROW */
+.page-slider-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px var(--cp);background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);}
+.page-slider-label{font-family:var(--fu);font-size:11px;color:var(--g600);white-space:nowrap;}
+.page-slider-row input[type=range]{flex:1;accent-color:var(--black);height:3px;cursor:pointer;}
+.page-slider-val{font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--black);min-width:36px;text-align:right;}
+
+.drill-btn{background:none;border:0.5px solid var(--g100);border-radius:4px;font-family:var(--fu);font-size:10px;color:var(--g600);padding:3px 8px;cursor:pointer;}
+.drill-btn:hover{background:var(--g50);color:var(--black);}
+
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .kpi-row-6{grid-template-columns:repeat(3,1fr);}
+  .two-col{grid-template-columns:1fr;}
+}
+
+@media(max-width:640px){
+  /* Header */
+  header{height:auto;flex-wrap:wrap;padding:10px 16px;gap:6px;}
+  .hdr-left{flex:1;min-width:0;gap:8px;}
+  .hdr-client{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+  .hdr-right{display:flex;align-items:center;gap:6px;}
+  nav{flex:none;}
+  .nav-tab{padding:5px 9px;font-size:11px;}
+
+  /* Pages */
+  .page{padding:14px 14px;}
+
+  /* KPI grids — 2 col on all breakpoints */
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .kpi-row-6{grid-template-columns:repeat(2,1fr);}
+  .kpi-value{font-size:14px;}
+
+  /* Drill controls — stack vertically */
+  .drill-controls{flex-direction:column;align-items:flex-start;gap:6px;}
+  .drill-leg{font-size:13px;}
+  select{width:100%;font-size:12px;}
+
+  /* Data table — hide columns beyond 7 on small screens */
+  .data-table th:nth-child(n+8),
+  .data-table td:nth-child(n+8){display:none;}
+
+  /* Auth card */
+  .auth-card{width:calc(100vw - 32px);padding:24px 20px;}
+
+  /* Cost breakdown — tighter columns, hide Status on mobile */
+  .cost-col-header,
+  .cost-cat-row,
+  .cost-coa-row,
+  .cost-totals{grid-template-columns:1fr 72px 72px 72px;font-size:10px;}
+  .cost-col-header>*:last-child,
+  .cost-cat-row>*:last-child,
+  .cost-coa-row>*:last-child,
+  .cost-totals>*:last-child{display:none;}
+  .cost-cat-num,.cost-coa-num,.cost-totals-num{font-size:11px;}
+  .cost-totals-label{font-size:8px;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <div class="auth-logo" style="margin-bottom:20px;">
+      <svg width="52" height="52" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(0,200) scale(0.008396,-0.008396)" fill="#1A1A1A" stroke="none">
+          <path d="M5575 22280 c-1065 -46 -1932 -256 -2755 -666 -445 -222 -736 -423 -1010 -696 -387 -386 -623 -861 -704 -1419 -9 -59 -21 -187 -26 -285 -8 -123 -10 -2451 -7 -7434 3 -7780 0 -7277 47 -7565 91 -568 354 -1086 737 -1456 422 -407 940 -635 1643 -721 123 -15 554 -14 1540 2 1207 20 5748 23 10525 6 3131 -11 4620 -13 4705 -6 650 53 1218 296 1649 706 402 382 649 865 742 1451 19 115 22 198 29 813 12 997 12 10484 0 12175 -12 1621 -22 2150 -44 2301 -66 445 -245 874 -496 1189 -111 138 -461 480 -635 618 -675 539 -1418 844 -2285 938 -234 25 -1115 30 -6855 39 -3294 5 -6129 11 -6300 14 -170 2 -395 1 -500 -4z m13622 -774 c283 -41 530 -135 712 -272 294 -221 473 -566 522 -1005 9 -82 9 -1270 0 -5150 -6 -2774 -11 -5694 -11 -6489 -1 -1457 -6 -1780 -35 -1945 -36 -208 -109 -404 -195 -530 -139 -202 -386 -362 -750 -486 -203 -70 -320 -88 -625 -101 -417 -18 -14065 -18 -14195 0 -389 53 -660 172 -870 382 -216 216 -330 484 -381 895 -15 119 -24 11715 -10 12750 9 656 11 730 30 831 56 307 171 537 365 730 197 197 408 305 726 371 106 22 163 27 375 33 138 4 3396 6 7240 5 6365 -3 7000 -4 7102 -19z m1824 -752 c366 -201 645 -473 802 -782 103 -202 151 -378 168 -622 14 -194 24 -8781 14 -12287 -7 -2624 -8 -2661 -27 -2650 -10 7 -109 145 -220 307 -110 162 -252 364 -315 448 -146 195 -209 295 -288 457 -100 206 -163 413 -202 665 -23 149 -24 535 -3 1315 12 466 15 1197 14 4020 0 1898 -6 4118 -12 4935 -16 2020 -26 4240 -20 4240 3 0 43 -21 89 -46z m-18206 -14094 c18 -590 -134 -979 -600 -1535 -65 -77 -183 -218 -262 -313 -79 -94 -151 -172 -159 -172 -8 0 -20 12 -27 28 -9 21 -13 1573 -15 7237 -2 6440 -1 7224 13 7345 74 651 385 1139 930 1461 l100 60 7 -6958 c4 -3827 10 -7046 13 -7153z m565 -1270 c22 -11 54 -39 70 -61 56 -77 57 -74 -96 -415 -158 -357 -398 -877 -590 -1279 -89 -186 -144 -289 -164 -307 -86 -79 -238 -51 -348 65 -120 127 -163 316 -103 451 54 124 895 1416 985 1514 57 63 159 76 246 32z m17246 -50 c46 -23 120 -123 391 -530 332 -499 556 -870 579 -961 20 -77 14 -205 -15 -317 -22 -84 -37 -111 -86 -148 -93 -71 -228 -72 -331 -3 -58 40 -96 108 -283 504 -347 738 -539 1174 -548 1246 -19 156 151 277 293 209z m-911 -369 c22 -10 48 -27 58 -39 36 -40 762 -1626 798 -1742 28 -92 31 -209 7 -256 -10 -17 -33 -45 -53 -63 -84 -74 -170 -89 -555 -98 -168 -5 -3925 -8 -8350 -8 -8576 0 -8108 -3 -8267 46 -78 25 -145 84 -162 144 -36 132 11 281 264 830 386 837 537 1150 566 1178 l29 27 7813 0 c7559 0 7813 -1 7852 -19z M6919 16510 c-493 -32 -920 -173 -1262 -417 -114 -82 -296 -260 -381 -372 -273 -363 -398 -798 -383 -1326 10 -331 72 -595 204 -860 131 -263 368 -522 618 -675 236 -145 529 -240 882 -286 183 -25 617 -25 813 0 278 34 564 92 785 160 l110 34 3 1026 2 1026 -725 0 -725 0 0 -345 0 -345 300 0 300 0 0 -405 0 -405 -26 -10 c-121 -46 -491 -58 -675 -21 -128 26 -219 56 -319 106 -308 155 -511 425 -588 785 -75 347 -32 746 109 1010 227 424 681 629 1304 590 261 -16 466 -57 653 -130 42 -16 78 -27 81 -25 6 7 180 666 181 686 1 42 -322 136 -600 173 -121 17 -410 37 -495 34 -27 0 -102 -4 -166 -8z M12480 16510 c-501 -32 -938 -181 -1276 -433 -421 -315 -666 -758 -734 -1332 -16 -126 -16 -432 -1 -550 43 -333 159 -645 329 -885 85 -120 260 -295 382 -383 114 -81 358 -204 490 -246 340 -109 744 -151 1155 -121 315 24 685 94 975 185 l80 26 0 1024 0 1025 -725 0 -725 0 0 -345 0 -345 300 0 300 0 -2 -407 -3 -408 -69 -17 c-38 -10 -134 -22 -212 -28 -526 -37 -932 141 -1169 514 -78 122 -136 280 -171 461 -25 126 -25 443 -1 574 97 515 427 841 956 941 185 35 515 30 761 -11 127 -21 305 -70 394 -109 27 -11 50 -19 52 -18 3 4 184 692 184 701 0 10 -163 69 -275 97 -285 75 -682 110 -995 90z M8997 16473 c-4 -3 -7 -879 -7 -1945 l0 -1938 445 0 445 0 -2 1943 -3 1942 -436 3 c-239 1 -439 -1 -442 -5z M6820 11209 c-318 -23 -617 -102 -880 -234 -603 -303 -968 -857 -1041 -1580 -25 -247 0 -591 60 -822 145 -563 511 -986 1036 -1196 297 -119 552 -162 950 -161 316 1 509 22 751 84 94 25 224 72 224 82 -1 18 -131 672 -135 676 -3 3 -44 -7 -92 -21 -222 -67 -386 -91 -633 -91 -265 0 -431 33 -619 124 -334 162 -538 454 -608 870 -23 141 -21 412 6 564 80 453 330 762 731 904 309 109 724 101 1092 -22 l126 -42 72 281 c39 154 80 311 90 348 l19 68 -53 24 c-242 107 -726 171 -1096 144z M12415 11170 c-252 -15 -563 -46 -657 -66 l-28 -6 0 -1914 0 -1914 435 0 435 0 0 760 0 760 178 0 c209 0 285 -10 371 -51 87 -40 141 -86 190 -162 63 -95 96 -194 186 -552 91 -362 160 -596 205 -692 l29 -63 450 0 450 0 -30 80 c-38 106 -88 280 -203 710 -52 195 -111 402 -131 459 -96 275 -232 453 -417 547 -27 13 -48 28 -48 32 0 4 30 21 68 37 229 100 454 333 546 566 52 132 61 190 60 384 -1 162 -4 190 -27 280 -122 458 -469 707 -1098 791 -144 19 -734 28 -964 14z m674 -650 c181 -19 301 -65 396 -152 64 -58 100 -114 125 -197 78 -251 -14 -513 -224 -636 -134 -78 -280 -105 -578 -105 l-208 0 0 534 0 534 48 7 c41 7 209 19 312 23 19 1 77 -3 129 -8z M8280 10780 l0 -370 520 0 520 0 0 -1570 0 -1570 445 0 445 0 0 1570 0 1570 525 0 525 0 0 370 0 370 -1490 0 -1490 0 0 -370z M15140 9210 l0 -1940 1215 0 1215 0 0 370 0 370 -770 0 -770 0 0 1570 0 1570 -445 0 -445 0 0 -1940z"/>
+        </g>
+      </svg>
+    </div>
+    <div class="auth-client">Budget Dashboard — Dom Dolla Touring</div>
+    <div class="auth-field">
+      <label class="auth-label">Airtable Personal Access Token</label>
+      <input id="input-key" class="auth-input" type="password" placeholder="pat...">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Base ID</label>
+      <input id="input-base" class="auth-input" type="text" placeholder="appXXXXXXXXXXXXXX">
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <button class="auth-btn" onclick="submitAuth()">Connect</button>
+    <div class="auth-note">Credentials are used in memory only and sent directly to Airtable's API. Nothing is stored.</div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="hidden">
+  <div class="load-label" id="load-text">Loading</div>
+  <div class="load-bar"><div class="load-bar-inner" id="load-bar"></div></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="hdr-left">
+      <div class="logo-wrap">
+        <svg width="32" height="32" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(0,200) scale(0.008396,-0.008396)" fill="#1A1A1A" stroke="none">
+            <path d="M5575 22280 c-1065 -46 -1932 -256 -2755 -666 -445 -222 -736 -423 -1010 -696 -387 -386 -623 -861 -704 -1419 -9 -59 -21 -187 -26 -285 -8 -123 -10 -2451 -7 -7434 3 -7780 0 -7277 47 -7565 91 -568 354 -1086 737 -1456 422 -407 940 -635 1643 -721 123 -15 554 -14 1540 2 1207 20 5748 23 10525 6 3131 -11 4620 -13 4705 -6 650 53 1218 296 1649 706 402 382 649 865 742 1451 19 115 22 198 29 813 12 997 12 10484 0 12175 -12 1621 -22 2150 -44 2301 -66 445 -245 874 -496 1189 -111 138 -461 480 -635 618 -675 539 -1418 844 -2285 938 -234 25 -1115 30 -6855 39 -3294 5 -6129 11 -6300 14 -170 2 -395 1 -500 -4z m13622 -774 c283 -41 530 -135 712 -272 294 -221 473 -566 522 -1005 9 -82 9 -1270 0 -5150 -6 -2774 -11 -5694 -11 -6489 -1 -1457 -6 -1780 -35 -1945 -36 -208 -109 -404 -195 -530 -139 -202 -386 -362 -750 -486 -203 -70 -320 -88 -625 -101 -417 -18 -14065 -18 -14195 0 -389 53 -660 172 -870 382 -216 216 -330 484 -381 895 -15 119 -24 11715 -10 12750 9 656 11 730 30 831 56 307 171 537 365 730 197 197 408 305 726 371 106 22 163 27 375 33 138 4 3396 6 7240 5 6365 -3 7000 -4 7102 -19z m1824 -752 c366 -201 645 -473 802 -782 103 -202 151 -378 168 -622 14 -194 24 -8781 14 -12287 -7 -2624 -8 -2661 -27 -2650 -10 7 -109 145 -220 307 -110 162 -252 364 -315 448 -146 195 -209 295 -288 457 -100 206 -163 413 -202 665 -23 149 -24 535 -3 1315 12 466 15 1197 14 4020 0 1898 -6 4118 -12 4935 -16 2020 -26 4240 -20 4240 3 0 43 -21 89 -46z m-18206 -14094 c18 -590 -134 -979 -600 -1535 -65 -77 -183 -218 -262 -313 -79 -94 -151 -172 -159 -172 -8 0 -20 12 -27 28 -9 21 -13 1573 -15 7237 -2 6440 -1 7224 13 7345 74 651 385 1139 930 1461 l100 60 7 -6958 c4 -3827 10 -7046 13 -7153z m565 -1270 c22 -11 54 -39 70 -61 56 -77 57 -74 -96 -415 -158 -357 -398 -877 -590 -1279 -89 -186 -144 -289 -164 -307 -86 -79 -238 -51 -348 65 -120 127 -163 316 -103 451 54 124 895 1416 985 1514 57 63 159 76 246 32z m17246 -50 c46 -23 120 -123 391 -530 332 -499 556 -870 579 -961 20 -77 14 -205 -15 -317 -22 -84 -37 -111 -86 -148 -93 -71 -228 -72 -331 -3 -58 40 -96 108 -283 504 -347 738 -539 1174 -548 1246 -19 156 151 277 293 209z m-911 -369 c22 -10 48 -27 58 -39 36 -40 762 -1626 798 -1742 28 -92 31 -209 7 -256 -10 -17 -33 -45 -53 -63 -84 -74 -170 -89 -555 -98 -168 -5 -3925 -8 -8350 -8 -8576 0 -8108 -3 -8267 46 -78 25 -145 84 -162 144 -36 132 11 281 264 830 386 837 537 1150 566 1178 l29 27 7813 0 c7559 0 7813 -1 7852 -19z M6919 16510 c-493 -32 -920 -173 -1262 -417 -114 -82 -296 -260 -381 -372 -273 -363 -398 -798 -383 -1326 10 -331 72 -595 204 -860 131 -263 368 -522 618 -675 236 -145 529 -240 882 -286 183 -25 617 -25 813 0 278 34 564 92 785 160 l110 34 3 1026 2 1026 -725 0 -725 0 0 -345 0 -345 300 0 300 0 0 -405 0 -405 -26 -10 c-121 -46 -491 -58 -675 -21 -128 26 -219 56 -319 106 -308 155 -511 425 -588 785 -75 347 -32 746 109 1010 227 424 681 629 1304 590 261 -16 466 -57 653 -130 42 -16 78 -27 81 -25 6 7 180 666 181 686 1 42 -322 136 -600 173 -121 17 -410 37 -495 34 -27 0 -102 -4 -166 -8z M12480 16510 c-501 -32 -938 -181 -1276 -433 -421 -315 -666 -758 -734 -1332 -16 -126 -16 -432 -1 -550 43 -333 159 -645 329 -885 85 -120 260 -295 382 -383 114 -81 358 -204 490 -246 340 -109 744 -151 1155 -121 315 24 685 94 975 185 l80 26 0 1024 0 1025 -725 0 -725 0 0 -345 0 -345 300 0 300 0 -2 -407 -3 -408 -69 -17 c-38 -10 -134 -22 -212 -28 -526 -37 -932 141 -1169 514 -78 122 -136 280 -171 461 -25 126 -25 443 -1 574 97 515 427 841 956 941 185 35 515 30 761 -11 127 -21 305 -70 394 -109 27 -11 50 -19 52 -18 3 4 184 692 184 701 0 10 -163 69 -275 97 -285 75 -682 110 -995 90z M8997 16473 c-4 -3 -7 -879 -7 -1945 l0 -1938 445 0 445 0 -2 1943 -3 1942 -436 3 c-239 1 -439 -1 -442 -5z M6820 11209 c-318 -23 -617 -102 -880 -234 -603 -303 -968 -857 -1041 -1580 -25 -247 0 -591 60 -822 145 -563 511 -986 1036 -1196 297 -119 552 -162 950 -161 316 1 509 22 751 84 94 25 224 72 224 82 -1 18 -131 672 -135 676 -3 3 -44 -7 -92 -21 -222 -67 -386 -91 -633 -91 -265 0 -431 33 -619 124 -334 162 -538 454 -608 870 -23 141 -21 412 6 564 80 453 330 762 731 904 309 109 724 101 1092 -22 l126 -42 72 281 c39 154 80 311 90 348 l19 68 -53 24 c-242 107 -726 171 -1096 144z M12415 11170 c-252 -15 -563 -46 -657 -66 l-28 -6 0 -1914 0 -1914 435 0 435 0 0 760 0 760 178 0 c209 0 285 -10 371 -51 87 -40 141 -86 190 -162 63 -95 96 -194 186 -552 91 -362 160 -596 205 -692 l29 -63 450 0 450 0 -30 80 c-38 106 -88 280 -203 710 -52 195 -111 402 -131 459 -96 275 -232 453 -417 547 -27 13 -48 28 -48 32 0 4 30 21 68 37 229 100 454 333 546 566 52 132 61 190 60 384 -1 162 -4 190 -27 280 -122 458 -469 707 -1098 791 -144 19 -734 28 -964 14z m674 -650 c181 -19 301 -65 396 -152 64 -58 100 -114 125 -197 78 -251 -14 -513 -224 -636 -134 -78 -280 -105 -578 -105 l-208 0 0 534 0 534 48 7 c41 7 209 19 312 23 19 1 77 -3 129 -8z M8280 10780 l0 -370 520 0 520 0 0 -1570 0 -1570 445 0 445 0 0 1570 0 1570 525 0 525 0 0 370 0 370 -1490 0 -1490 0 0 -370z M15140 9210 l0 -1940 1215 0 1215 0 0 370 0 370 -770 0 -770 0 0 1570 0 1570 -445 0 -445 0 0 -1940z"/>
+          </g>
+        </svg>
+      </div>
+      <div class="hdr-div"></div>
+      <button class="hdr-home" onclick="showPage('overview')" id="hdr-home-btn"><strong>Dom Dolla Touring</strong> — Budget dashboard</button>
+    </div>
+    <div class="hdr-right">
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">
+        <svg id="theme-icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" viewBox="0 0 24 24" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- PAGE 1 -->
+  <div id="page-overview" class="page active">
+    <div class="page-slider-row">
+      <span class="page-slider-label">Target margin</span>
+      <input type="range" id="ov-slider" min="10" max="60" value="30" step="1" oninput="onOvSlider(this.value)">
+      <span class="page-slider-val" id="ov-slider-val">30%</span>
+    </div>
+    <div class="kpi-row" id="ov-kpis-row1"></div>
+    <div class="kpi-row" id="ov-kpis-row2"></div>
+    <div id="ov-filters" style="display:none;margin-bottom:var(--cg);display:flex;gap:8px;flex-wrap:wrap;">
+      <!-- Region filter -->
+      <div class="leg-filter-wrap">
+        <button class="leg-filter-trigger" onclick="toggleRegionFilter()" id="ov-region-trigger">
+          <span id="ov-region-label">All regions</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="leg-filter-panel" id="ov-region-panel"></div>
+      </div>
+      <!-- Leg filter -->
+      <div id="ov-leg-filter" style="display:none;">
+        <div class="leg-filter-wrap">
+          <button class="leg-filter-trigger" onclick="toggleLegFilter()" id="ov-filter-trigger">
+            <span id="ov-filter-label">All legs</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="leg-filter-panel" id="ov-filter-panel"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESIDENCIES -->
+    <div class="ov-section">
+      <button class="ov-section-hdr" onclick="toggleSection('residencies')">
+        <span class="ov-section-title">Residencies</span>
+        <span class="ov-section-meta" id="ov-residencies-meta"></span>
+        <svg class="ov-section-chev" id="ov-residencies-chev" width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="ov-section-body" id="ov-residencies-body">
+        <div id="ov-cards-residencies"></div>
+      </div>
+    </div>
+
+    <!-- TOURS -->
+    <div class="ov-section">
+      <button class="ov-section-hdr" onclick="toggleSection('tours')">
+        <span class="ov-section-title">Tours</span>
+        <span class="ov-section-meta" id="ov-tours-meta"></span>
+        <svg class="ov-section-chev" id="ov-tours-chev" width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="ov-section-body" id="ov-tours-body">
+        <div id="ov-cards-tours"></div>
+      </div>
+    </div>
+
+    <!-- SALARIES -->
+    <div class="ov-section">
+      <button class="ov-section-hdr" onclick="toggleSection('salary')">
+        <span class="ov-section-title">Salaries & retainers</span>
+        <span class="ov-section-meta" id="ov-salary-meta"></span>
+        <svg class="ov-section-chev" id="ov-salary-chev" width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="ov-section-body" id="ov-salary-body">
+        <div id="ov-salary"><div style="color:var(--g400);font-size:12px;padding:8px 0;">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- OPS -->
+    <div class="ov-section">
+      <button class="ov-section-hdr" onclick="toggleSection('ops')">
+        <span class="ov-section-title">Ops</span>
+        <span class="ov-section-meta" id="ov-ops-meta"></span>
+        <svg class="ov-section-chev" id="ov-ops-chev" width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="ov-section-body" id="ov-ops-body">
+        <div id="ov-cards-ops"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div id="page-drilldown" class="page">
+    <div class="drill-controls">
+      <div class="drill-leg" id="dd-leg-name">—</div>
+      <select id="dd-leg-select" onchange="onLegChange()"></select>
+      <select id="dd-ver-select" onchange="onVersionChange()"></select>
+      <span id="dd-badge" class="pill blue" style="display:none">Current</span>
+    </div>
+    <div id="dd-insight"></div>
+    <div class="page-slider-row">
+      <span class="page-slider-label">Target margin</span>
+      <input type="range" id="dd-slider" min="10" max="60" value="30" step="1" oninput="onDdSlider(this.value)">
+      <span class="page-slider-val" id="dd-slider-val">30%</span>
+    </div>
+    <div class="kpi-row kpi-row-6" id="dd-kpis"></div>
+    <div class="two-col">
+      <div>
+        <div class="section-label">Revenue & deductions</div>
+        <div class="card"><table class="pnl-table" id="dd-pnl"></table></div>
+      </div>
+      <div>
+        <div class="section-label">Planning targets</div>
+        <div class="card">
+          <div class="planning-grid" id="dd-planning"></div>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Cost breakdown</div>
+    <div class="card" id="dd-costs"></div>
+  </div>
+  <div class="disclaimer">This dashboard is provided as an estimate only and is based on information available at the time of preparation. All figures are indicative and subject to change.</div>
+</div>
+
+<script>
+let API_KEY='', BASE_ID='';
+let allVersions=[], tourLegs=[];
+let ovTarget=0.30, ddTarget=0.30;
+let selLegId=null, selVersion=null;
+let selectedLegIds=new Set(); // IDs of legs included in overview KPI totals
+let selectedRegions=new Set(); // empty = all regions
+
+const D=(n,dp=0)=>n==null?'—':'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp});
+const P=n=>n==null?'—':(n*100).toFixed(1)+'%';
+const DASH='<span class="dash-val">—</span>';
+
+/* THEME */
+function applyTheme(theme){
+  const root=document.documentElement;
+  if(theme==='system'){
+    root.removeAttribute('data-theme');
+  } else {
+    root.setAttribute('data-theme',theme);
+  }
+  // Determine actual effective mode for icon
+  const isDark = theme==='dark' ||
+    (theme==='system' && window.matchMedia('(prefers-color-scheme:dark)').matches);
+  document.getElementById('theme-icon-moon').style.display = isDark?'none':'block';
+  document.getElementById('theme-icon-sun').style.display  = isDark?'block':'none';
+  try{ localStorage.setItem('ddt-theme', theme); }catch(e){}
+}
+
+function toggleTheme(){
+  const root=document.documentElement;
+  const current=root.getAttribute('data-theme')||'system';
+  const sysDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  // Cycle: if currently showing light → go dark; if dark → go system; if system → go light
+  const effectiveIsDark = current==='dark' || (current==='system' && sysDark);
+  const effectiveIsLight = current==='light' || (current==='system' && !sysDark);
+  let next;
+  if(effectiveIsLight){ next='dark'; }
+  else if(effectiveIsDark && current!=='system'){ next='system'; }
+  else { next='light'; }
+  applyTheme(next);
+}
+
+// Init theme on load
+(function initTheme(){
+  let saved; try{ saved=localStorage.getItem('ddt-theme'); }catch(e){}
+  applyTheme(saved||'system');
+  // Keep icon in sync if OS preference changes while page is open
+  window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{
+    const cur=document.documentElement.getAttribute('data-theme')||'system';
+    if(cur==='system') applyTheme('system');
+  });
+})();
+
+async function submitAuth(){
+  const k=document.getElementById('input-key').value.trim();
+  const b=document.getElementById('input-base').value.trim();
+  const err=document.getElementById('auth-error');
+  if(!k||!b){err.textContent='Both fields are required.';err.style.display='block';return;}
+  API_KEY=k; BASE_ID=b;
+  document.getElementById('auth-gate').classList.add('hidden');
+  document.getElementById('loading').classList.remove('hidden');
+  await loadData();
+}
+
+async function fetchAll(table,fields=[]){
+  let recs=[],offset=null;
+  do{
+    const p=new URLSearchParams();
+    fields.forEach(f=>p.append('fields[]',f));
+    if(offset)p.set('offset',offset);
+    const res=await fetch(`https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(table)}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
+    if(!res.ok)throw new Error(`Airtable ${res.status}: ${await res.text()}`);
+    const d=await res.json(); recs=recs.concat(d.records); offset=d.offset;
+  }while(offset);
+  return recs;
+}
+
+function setLoad(pct,txt){
+  document.getElementById('load-bar').style.width=pct+'%';
+  document.getElementById('load-text').textContent=txt;
+}
+
+async function loadData(){
+  try{
+    setLoad(10,'Loading tour legs');
+    // Tour Legs is now the primary live data source
+    // Core fields — confirmed to exist
+    const TL_CORE=[
+      'Name','Region',
+      'Total Fee (USD)',
+      'MGMT Commission %','Agent Commission %',
+      'Marketing Alloc %','Salary Alloc %','Ops Alloc %',
+      'Total Commissions','Total Allocations',
+      'Flights Budget','Hotels Budget','Wages Budget','Production Budget',
+      'Ground Transport Budget','Media Budget','Misc Budget',
+      'Total Tour Costs Budget',
+      'Flights Actual','Hotels Actual','Wages Actual','Production Actual',
+      'Ground Transport Actual','Media Actual','Misc Actual',
+      'Total Tour Costs Actual','Total Variance','Overall Invoiced %',
+      'Net Profit (Budget)',
+      'Margin % (Budget)',
+      'Total WHT',
+      'Net Profit After WHT (Budget)',
+      'Target Margin %','Target Net Profit','Profit Gap',
+      'Additional Revenue for Target','Cost Saving for Target',
+    ];
+    // Extended fields — fetched separately, silently skipped if missing
+    const TL_EXTENDED=[
+      'Net Profit (Actual)',
+      'Margin % (Actual)',
+      'Net Profit After WHT (Actual)',
+    ];
+    let lr=await fetchAll('Tour Legs',TL_CORE);
+    // Try to fetch extended fields, merge in if available
+    try{
+      const lrExt=await fetchAll('Tour Legs',['Name',...TL_EXTENDED]);
+      const extMap=new Map(lrExt.map(r=>[r.id,r.fields]));
+      lr=lr.map(r=>({...r,fields:{...r.fields,...(extMap.get(r.id)||{})}}));
+    }catch(e){ /* extended fields not yet built — skip silently */ }
+    tourLegs=lr.map(r=>({
+      id:r.id,
+      name:r.fields['Name']||r.id,
+      region:r.fields['Region']||null,
+      ...r.fields,
+      // normalise fee field name for compute()
+      'Gross Fee (USD)':r.fields['Total Fee (USD)']||0,
+    })).sort((a,b)=>{
+      const prefixA=parseInt((a.name.match(/^(\d+)/)||[0,0])[1])||0;
+      const prefixB=parseInt((b.name.match(/^(\d+)/)||[0,0])[1])||0;
+      // 0 = named series 01-99 (top), 1 = dated 260101+ (middle), 2 = ops 00 (bottom)
+      const cat=n=>n===0?2:n>=100?1:0;
+      const ca=cat(prefixA), cb=cat(prefixB);
+      if(ca!==cb)return ca-cb;
+      return prefixA-prefixB;
+    });
+
+    setLoad(50,'Loading budget versions');
+    // Budget Versions — snapshot records only (no Current)
+    const BV_FIELDS=[
+      'Name','Version','Version Date','Version Notes','Tour Leg',
+      'Gross Fee (USD)',
+      'Management Commission %','Agent Commission %',
+      'Marketing Alloc %','Salary Alloc %','Ops Alloc %',
+      'Flights Budget','Hotels Budget','Wages Budget','Production Budget',
+      'Ground Transport Budget','Media Budget','Misc Budget',
+      'Total Tour Costs Budget',
+      'WHT (USD)','Target Margin %',
+      'Net Profit (Budget)','Margin % (Budget)',
+      'Agent Commission (USD)','Management Commission (USD)',
+      'Total Alloc %',
+    ];
+    const vr=await fetchAll('Budget Versions',BV_FIELDS);
+    allVersions=vr.map(r=>({id:r.id,...r.fields}));
+
+    setLoad(100,'Ready');
+    await new Promise(r=>setTimeout(r,200));
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    buildLegFilter(); buildOverview(); buildDrillControls();
+    loadSalaries();
+  }catch(e){
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('auth-gate').classList.remove('hidden');
+    const err=document.getElementById('auth-error');
+    err.textContent='Connection failed: '+e.message; err.style.display='block';
+  }
+}
+
+function compute(v,tgt){
+  // Primary values — read from Airtable formula fields where available
+  const gross=v['Gross Fee (USD)']||v['Total Fee (USD)']||0;
+  const mgmt=v['MGMT Commission %']??v['Management Commission %']??0.175;
+  const agent=v['Agent Commission %']??0.10;
+  const cp=mgmt+agent;
+  const mp=v['Marketing Alloc %']||0.05, sp=v['Salary Alloc %']||0.05, op=v['Ops Alloc %']||0.042;
+  const ap=mp+sp+op;
+
+  // Cost budgets — 7 categories
+  const fl=v['Flights Budget']||0, ht=v['Hotels Budget']||0, wg=v['Wages Budget']||0;
+  const pr=v['Production Budget']||0, gt=v['Ground Transport Budget']||0;
+  const md=v['Media Budget']||0, ms=v['Misc Budget']||0;
+  const costs=v['Total Tour Costs Budget']||(fl+ht+wg+pr+gt+md+ms);
+
+  // Cost actuals — 7 categories
+  const flAct=v['Flights Actual']||0, htAct=v['Hotels Actual']||0, wgAct=v['Wages Actual']||0;
+  const prAct=v['Production Actual']||0, gtAct=v['Ground Transport Actual']||0;
+  const mdAct=v['Media Actual']||0, msAct=v['Misc Actual']||0;
+  const costsAct=v['Total Tour Costs Actual']||(flAct+htAct+wgAct+prAct+gtAct+mdAct+msAct);
+
+  const wht=v['Total WHT']||v['WHT (USD)']||0;
+  const t=tgt!=null?tgt:(v['Target Margin %']||0.30);
+
+  // P&L — read from Airtable formula fields, fall back to client-side calc
+  const comm=v['Total Commissions']||(gross*cp);
+  const mgmtComm=v['Management Commission (USD)']||(gross*mgmt);
+  const agentComm=v['Agent Commission (USD)']||(gross*agent);
+  const alloc=v['Total Allocations']||(gross*ap);
+  const mktAlloc=gross*mp, salAlloc=gross*sp, opsAlloc=gross*op;
+
+  const net=v['Net Profit (Budget)']??(gross-comm-alloc-costs);
+  const netAct=v['Net Profit (Actual)']??(gross-comm-alloc-costsAct);
+  const margin=v['Margin % (Budget)']??(gross>0?net/gross:0);
+  const marginAct=v['Margin % (Actual)']??(gross>0?netAct/gross:0);
+
+  // Planning targets
+  const tnet=v['Target Net Profit']||(gross*t);
+  const gap=v['Profit Gap']??(tnet-net);
+  const denom=1-cp-ap-t;
+  const addRev=v['Additional Revenue for Target']??(gap>0&&denom!==0?gap/denom:0);
+  const costSav=v['Cost Saving for Target']??(gap>0?gap:0);
+
+  // Reconciliation
+  const invoicedPct=v['Overall Invoiced %']||(costs>0?costsAct/costs:0);
+  const totalVariance=v['Total Variance']??(costs-costsAct);
+
+  return{
+    gross,mgmt,agent,cp,mp,sp,op,ap,
+    comm,mgmtComm,agentComm,alloc,mktAlloc,salAlloc,opsAlloc,
+    fl,ht,wg,pr,gt,md,ms,costs,
+    flAct,htAct,wgAct,prAct,gtAct,mdAct,msAct,costsAct,
+    wht,t,net,netAct,margin,marginAct,tnet,gap,addRev,costSav,
+    invoicedPct,totalVariance
+  };
+}
+
+function pill(m,t){
+  if(m>=t)return'<span class="pill green">On target</span>';
+  if(m>=t-0.05)return'<span class="pill amber">Below target</span>';
+  return'<span class="pill red">Significantly below</span>';
+}
+
+function varStr(v){
+  if(v==null)return DASH;
+  if(v>0)return`<span class="var-pos">+${D(v)}</span>`;
+  if(v<0)return`<span class="var-neg">-${D(Math.abs(v))}</span>`;
+  return D(v);
+}
+
+const REGION_ORDER=['NA','SA','EU/UK','ANZ','ROW'];
+
+async function loadSalaries(){
+  document.getElementById('ov-salary').innerHTML=
+    `<div style="color:var(--g400);font-size:12px;padding:8px 0;">Loading...</div>`;
+  try{
+    const [recs, events]=await Promise.all([
+      fetchAll('Off Road Rates',[
+        'Name','Person','Role Display','Is Current?','Weekly Rate (Local)','Currency',
+        'Weekly Rate USD','Annual Cost USD','Estimated Paid YTD (USD)',
+        'Burn Rate','Rate From','Rate To','CoA'
+      ]),
+      fetchAll('Tour Events',['Date','Tour Leg'])
+    ]);
+
+    const today=new Date(); today.setHours(0,0,0,0);
+    const jan1=new Date(today.getFullYear(),0,1);
+
+    // Current year only — exclude records whose Rate To is before Jan 1 this year
+    const thisYear=recs.filter(r=>{
+      const to=r.fields['Rate To'];
+      if(!to)return true;
+      return new Date(to)>=jan1;
+    });
+
+    // Split into current and historical
+    const current=thisYear.filter(r=>r.fields['Is Current?']);
+    const historical=thisYear.filter(r=>!r.fields['Is Current?']);
+
+    // Allocation collected to date — show legs (not 00_) with events on or before today
+    const showLegs=tourLegs.filter(l=>!l.name.startsWith('00_'));
+    const legIdsWithPastEvents=new Set(
+      events
+        .filter(e=>e.fields['Date']&&new Date(e.fields['Date'])<=today)
+        .flatMap(e=>e.fields['Tour Leg']||[])
+    );
+    const salaryToDate=showLegs
+      .filter(l=>legIdsWithPastEvents.has(l.id))
+      .reduce((s,l)=>{
+        const fee=l['Total Fee (USD)']||l['Gross Fee (USD)']||0;
+        const salPct=l['Salary Alloc %']||0.05;
+        return s+(fee*salPct);
+      },0);
+
+    // Full year allocation across all show legs
+    const salaryFullYear=showLegs.reduce((s,l)=>{
+      const fee=l['Total Fee (USD)']||l['Gross Fee (USD)']||0;
+      const salPct=l['Salary Alloc %']||0.05;
+      return s+(fee*salPct);
+    },0);
+
+    buildSalarySection(current, historical, salaryToDate, salaryFullYear);
+  }catch(e){
+    document.getElementById('ov-salary').innerHTML=
+      `<div style="color:var(--red600);font-size:12px;padding:8px 0;">Could not load salary data: ${e.message}</div>`;
+  }
+}
+
+function salPersonName(f){
+  // Name formula: "Firstname Lastname - USD 3000 (from DD Mon YYYY)"
+  // Extract just the person name — everything before " - "
+  const fullName=f['Name']||'';
+  const personName=fullName.split(' - ')[0].trim()||fullName||'—';
+  const localRate=f['Weekly Rate (Local)']!=null?Math.round(f['Weekly Rate (Local)']):null;
+  const afterDash=fullName.split('\u2014')[1]||'';
+  const currencyCode=afterDash.trim().split(/\s+/)[0]||'';
+  const localStr=localRate!=null&&currencyCode?` — ${currencyCode} ${localRate.toLocaleString('en-US')}`:'';
+  return personName+localStr;
+}
+
+function salRole(f){
+  const v=f['Role Display'];
+  if(!v)return'—';
+  return Array.isArray(v)?v.filter(Boolean).join(', '):String(v);
+}
+
+function salRow(r){
+  const f=r.fields;
+  const ytd=Math.round(f['Estimated Paid YTD (USD)']||0);
+  const burn=Math.round(f['Burn Rate']||0);
+  const weekly=Math.round(f['Weekly Rate USD']||0);
+  const annual=Math.round(f['Annual Cost USD']||0);
+  return`<tr>
+    <td>${salPersonName(f)}</td>
+    <td class="muted">${salRole(f)}</td>
+    <td class="r">${D(weekly)}</td>
+    <td class="r">${D(annual)}</td>
+    <td class="r">${D(ytd)}</td>
+    <td class="r">${D(burn)}</td>
+  </tr>`;
+}
+
+function buildSalarySection(current, historical, salaryToDate, salaryFullYear){
+  current.sort((a,b)=>(b.fields['Annual Cost USD']||0)-(a.fields['Annual Cost USD']||0));
+  historical.sort((a,b)=>(b.fields['Annual Cost USD']||0)-(a.fields['Annual Cost USD']||0));
+
+  const totW=r=>Math.round(r.reduce((s,x)=>s+(x.fields['Weekly Rate USD']||0),0));
+  const totA=r=>Math.round(r.reduce((s,x)=>s+(x.fields['Annual Cost USD']||0),0));
+  const totY=r=>Math.round(r.reduce((s,x)=>s+(x.fields['Estimated Paid YTD (USD)']||0),0));
+  const totB=r=>Math.round(r.reduce((s,x)=>s+(x.fields['Burn Rate']||0),0));
+
+  const thead=`<thead><tr>
+    <th>Person</th><th>Role</th>
+    <th class="r">Weekly (USD)</th>
+    <th class="r">Annual cost</th>
+    <th class="r">Paid YTD (est.)</th>
+    <th class="r">Burn rate (30d)</th>
+  </tr></thead>`;
+
+  const totalRow=(recs,label)=>`<tr class="sal-total">
+    <td colspan="2">${label}</td>
+    <td class="r">${D(totW(recs))}</td>
+    <td class="r">${D(totA(recs))}</td>
+    <td class="r">${D(totY(recs))}</td>
+    <td class="r">${D(totB(recs))}</td>
+  </tr>`;
+
+  // Allocation to date vs paid to date
+  const paidToDate=totY(current);
+  const toDateNet=salaryToDate-paidToDate;
+  const toDateCls=toDateNet>=0?'green':'red';
+  const toDatePct=paidToDate>0?((salaryToDate/paidToDate)*100).toFixed(0)+'%':'—';
+
+  // Full year net position
+  const totalAnnual=totA(current);
+  const yearNet=salaryFullYear-totalAnnual;
+  const yearCls=yearNet>=0?'green':'red';
+  const showLegs=tourLegs.filter(l=>!l.name.startsWith('00_'));
+
+
+  const salTableRow=(r,muted=false)=>{
+    const f=r.fields;
+    const name=salPersonName(f);
+    const role=salRole(f);
+    const weekly=Math.round(f['Weekly Rate USD']||0);
+    const annual=Math.round(f['Annual Cost USD']||0);
+    const ytd=Math.round(f['Estimated Paid YTD (USD)']||0);
+    const burn=Math.round(f['Burn Rate']||0);
+    return`<tr${muted?' class="sal-muted"':''}>
+      <td>${name}</td>
+      <td class="sal-role">${role}</td>
+      <td class="sal-num">${D(weekly)}</td>
+      <td class="sal-num">${D(annual)}</td>
+      <td class="sal-num">${D(ytd)}</td>
+      <td class="sal-num">${D(burn)}</td>
+    </tr>`;
+  };
+
+  const salThead=`<thead><tr>
+    <th class="sal-th">Person</th>
+    <th class="sal-th">Role</th>
+    <th class="sal-th sal-th-r">Weekly (USD)</th>
+    <th class="sal-th sal-th-r">Annual cost</th>
+    <th class="sal-th sal-th-r">Paid YTD (est.)</th>
+    <th class="sal-th sal-th-r">Burn rate (30d)</th>
+  </tr></thead>`;
+
+  const salTotalRow=(recs,label)=>`<tr class="sal-total">
+    <td colspan="2">${label}</td>
+    <td class="sal-num">${D(totW(recs))}</td>
+    <td class="sal-num">${D(totA(recs))}</td>
+    <td class="sal-num">${D(totY(recs))}</td>
+    <td class="sal-num">${D(totB(recs))}</td>
+  </tr>`;
+
+  document.getElementById('ov-salary').innerHTML=`
+    <div class="sal-section-label">Current rates</div>
+    <div class="sal-table-wrap">
+      <table class="sal-table">
+        ${salThead}
+        <tbody>
+          ${current.map(r=>salTableRow(r)).join('')}
+          ${salTotalRow(current,'Total')}
+        </tbody>
+      </table>
+    </div>
+    ${historical.length>0?`
+    <div class="sal-section-label" style="margin-top:16px;">Historical rates (this year)</div>
+    <div class="sal-table-wrap">
+      <table class="sal-table">
+        ${salThead}
+        <tbody>
+          ${historical.map(r=>salTableRow(r,true)).join('')}
+          ${salTotalRow(historical,'Total')}
+        </tbody>
+      </table>
+    </div>`:''}
+    <div class="sal-funding" style="margin-top:16px;">
+      <div>
+        <div class="sal-funding-label">Allocation collected to date</div>
+        <div style="font-size:10px;color:var(--g400);margin-top:2px;">Shows on or before today × salary alloc %</div>
+      </div>
+      <div style="text-align:right">
+        <div class="sal-funding-val">${D(salaryToDate)}</div>
+        <div class="sal-funding-val ${toDateCls}" style="font-size:11px;margin-top:2px;">
+          ${toDateNet>=0?'+':''}${D(toDateNet)} vs est. paid &nbsp;·&nbsp; ${toDatePct} covered
+        </div>
+      </div>
+    </div>
+    <div class="sal-funding" style="border-top:0.5px solid var(--g100);padding-top:10px;">
+      <div>
+        <div class="sal-funding-label">Full year allocation vs annual cost</div>
+        <div style="font-size:10px;color:var(--g400);margin-top:2px;">${showLegs.length} show leg${showLegs.length!==1?'s':''} × salary alloc %</div>
+      </div>
+      <div style="text-align:right">
+        <div class="sal-funding-val">${D(salaryFullYear)}</div>
+        <div class="sal-funding-val ${yearCls}" style="font-size:11px;margin-top:2px;">
+          ${yearNet>=0?'+':''}${D(yearNet)} net position
+        </div>
+      </div>
+    </div>`;
+}
+
+function buildLegFilter(){
+  const allLegs=tourLegs.filter(l=>l.region); // only tagged legs
+
+  const availRegions=REGION_ORDER.filter(r=>allLegs.some(l=>l.region===r));
+  document.getElementById('ov-filters').style.display=allLegs.length>1?'flex':'none';
+
+  // Region filter
+  const regionPanel=document.getElementById('ov-region-panel');
+  regionPanel.innerHTML='';
+  selectedRegions=new Set(availRegions);
+
+  if(availRegions.length>1){
+    const allRow=document.createElement('div'); allRow.className='leg-filter-item';
+    allRow.innerHTML=`<input type="checkbox" id="rflt-all" checked onchange="onRegionAll(this)"><label for="rflt-all" style="cursor:pointer;font-weight:bold;">All regions</label>`;
+    regionPanel.appendChild(allRow);
+    const div=document.createElement('div'); div.className='leg-filter-divider'; regionPanel.appendChild(div);
+  }
+  availRegions.forEach(r=>{
+    const safe=r.replace(/[^a-zA-Z0-9]/g,'_');
+    const row=document.createElement('div'); row.className='leg-filter-item';
+    row.innerHTML=`<input type="checkbox" id="rflt-${safe}" value="${r}" checked onchange="onRegionChange()"><label for="rflt-${safe}" style="cursor:pointer">${r}</label>`;
+    regionPanel.appendChild(row);
+  });
+
+  buildLegCheckboxes(allLegs);
+  updateRegionLabel();
+  updateFilterLabel();
+
+  document.addEventListener('click',e=>{
+    if(!document.getElementById('ov-filters').contains(e.target)){
+      document.getElementById('ov-filter-panel').classList.remove('open');
+      document.getElementById('ov-region-panel').classList.remove('open');
+    }
+  });
+}
+
+function buildLegCheckboxes(legList){
+  // legList is array of tourLegs objects
+  const panel=document.getElementById('ov-filter-panel');
+  panel.innerHTML='';
+  const legWrap=document.getElementById('ov-leg-filter');
+  legWrap.style.display=legList.length>1?'block':'none';
+  selectedLegIds=new Set(legList.map(x=>x.id));
+  if(legList.length<=1) return;
+
+  const allRow=document.createElement('div'); allRow.className='leg-filter-item';
+  allRow.innerHTML=`<input type="checkbox" id="flt-all" checked onchange="onFilterAll(this)"><label for="flt-all" style="cursor:pointer;font-weight:bold;">All legs</label>`;
+  panel.appendChild(allRow);
+  const div=document.createElement('div'); div.className='leg-filter-divider'; panel.appendChild(div);
+
+  legList.forEach(leg=>{
+    const safe=leg.id.replace(/[^a-zA-Z0-9]/g,'_');
+    const row=document.createElement('div'); row.className='leg-filter-item';
+    row.innerHTML=`<input type="checkbox" id="flt-${safe}" value="${leg.id}" checked onchange="onFilterLeg()"><label for="flt-${safe}" style="cursor:pointer">${leg.name}</label>`;
+    panel.appendChild(row);
+  });
+}
+
+function getVisibleLegs(){
+  return tourLegs.filter(l=>l.region&&selectedRegions.has(l.region));
+}
+
+function toggleRegionFilter(){
+  document.getElementById('ov-filter-panel').classList.remove('open');
+  document.getElementById('ov-region-panel').classList.toggle('open');
+}
+function toggleLegFilter(){
+  document.getElementById('ov-region-panel').classList.remove('open');
+  document.getElementById('ov-filter-panel').classList.toggle('open');
+}
+
+function onRegionAll(cb){
+  const allVals=[...document.querySelectorAll('#ov-region-panel input[value]')].map(i=>i.value);
+  document.querySelectorAll('#ov-region-panel input').forEach(i=>i.checked=true);
+  selectedRegions=new Set(allVals); // always keep all when toggling "all"
+  afterRegionChange();
+}
+
+function onRegionChange(){
+  const checked=[...document.querySelectorAll('#ov-region-panel input[value]:checked')].map(i=>i.value);
+  if(checked.length===0){
+    // Prevent empty — restore all
+    document.querySelectorAll('#ov-region-panel input').forEach(i=>i.checked=true);
+    selectedRegions=new Set([...document.querySelectorAll('#ov-region-panel input[value]')].map(i=>i.value));
+  } else {
+    selectedRegions=new Set(checked);
+  }
+  const total=document.querySelectorAll('#ov-region-panel input[value]').length;
+  const rfltAll=document.getElementById('rflt-all');
+  if(rfltAll) rfltAll.checked=selectedRegions.size===total;
+  afterRegionChange();
+}
+
+function afterRegionChange(){
+  const visible=getVisibleLegs();
+  buildLegCheckboxes(visible);
+  updateRegionLabel();
+  updateFilterLabel();
+  buildOverview();
+}
+function onFilterAll(cb){
+  const allIds=[...document.querySelectorAll('#ov-filter-panel input[value]')].map(i=>i.value);
+  document.querySelectorAll('#ov-filter-panel input').forEach(i=>i.checked=true);
+  selectedLegIds=new Set(allIds);
+  updateFilterLabel(); buildOverview();
+}
+
+function onFilterLeg(){
+  const checked=[...document.querySelectorAll('#ov-filter-panel input[value]:checked')].map(i=>i.value);
+  if(checked.length===0){
+    document.querySelectorAll('#ov-filter-panel input[value]').forEach(i=>i.checked=true);
+    selectedLegIds=new Set([...document.querySelectorAll('#ov-filter-panel input[value]')].map(i=>i.value));
+  } else {
+    selectedLegIds=new Set(checked);
+  }
+  const total=document.querySelectorAll('#ov-filter-panel input[value]').length;
+  const fltAll=document.getElementById('flt-all');
+  if(fltAll) fltAll.checked=selectedLegIds.size===total;
+  updateFilterLabel(); buildOverview();
+}
+
+function updateRegionLabel(){
+  const total=document.querySelectorAll('#ov-region-panel input[value]').length;
+  const chosen=selectedRegions.size;
+  document.getElementById('ov-region-label').textContent=
+    chosen===total?'All regions':chosen===1?[...selectedRegions][0]:`${chosen} regions`;
+}
+
+function updateFilterLabel(){
+  const total=document.querySelectorAll('#ov-filter-panel input[value]').length;
+  if(total===0){document.getElementById('ov-filter-label').textContent='All legs';return;}
+  const chosen=selectedLegIds.size;
+  document.getElementById('ov-filter-label').textContent=
+    chosen===total?'All legs':chosen===1?'1 leg':`${chosen} of ${total} legs`;
+}
+
+function buildOverview(){
+  // Overview always reads live data from Tour Legs
+  let tG=0,tCm=0,tMgmt=0,tAgent=0,tAl=0,tMkt=0,tSal=0,tOps=0;
+  let tCo=0,tFl=0,tHt=0,tWg=0,tPr=0,tGt=0,tMd=0,tMs=0;
+  let tN=0,tWht=0,tAr=0,tCs=0;
+  let selCount=0;
+
+  const rows=tourLegs.map(leg=>{
+    const c=compute(leg,ovTarget);
+    const region=leg.region||null;
+    const inRegion=!region||selectedRegions.size===0||selectedRegions.has(region);
+    const inSel=selectedLegIds.has(leg.id);
+    if(inRegion&&inSel){
+      tG+=c.gross; tCm+=c.comm; tMgmt+=c.mgmtComm; tAgent+=c.agentComm;
+      tAl+=c.alloc; tMkt+=c.mktAlloc; tSal+=c.salAlloc; tOps+=c.opsAlloc;
+      tCo+=c.costs; tFl+=c.fl; tHt+=c.ht; tWg+=c.wg; tPr+=c.pr;
+      tGt+=c.gt; tMd+=c.md; tMs+=c.ms;
+      tN+=c.net; tWht+=c.wht; tAr+=c.addRev; tCs+=c.costSav;
+      selCount++;
+    }
+    return{leg,c,lid:leg.id,lname:leg.name,region,inRegion,inSel};
+  });
+  const bm=tG>0?tN/tG:0;
+  const kc=bm>=ovTarget?'green':bm>=ovTarget-0.05?'amber':'red';
+  const totalLegs=tourLegs.length;
+  const legLabel=selCount===totalLegs?`${totalLegs} leg${totalLegs!==1?'s':''}`:`${selCount} of ${totalLegs} legs`;
+
+  // Per-region gross fee breakdown for the fees card
+  const regionFees=REGION_ORDER.filter(r=>selectedRegions.has(r)).map(r=>{
+    const rTotal=rows.filter(x=>x.inRegion&&x.inSel&&x.region===r).reduce((s,x)=>s+x.c.gross,0);
+    if(rTotal===0)return null;
+    const pct=tG>0?((rTotal/tG)*100).toFixed(0)+'%':'—';
+    return[r,`${D(rTotal)} <span style="color:var(--g400);font-size:9px">${pct}</span>`];
+  }).filter(Boolean);
+
+  const chevron=`<svg class="kpi-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  // Helper — expandable card (all cards share same toggle group)
+  const expCard=(id,cls,label,value,sub,rows)=>{
+    const rowsHtml=rows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('');
+    return`<div class="kpi-card ${cls} kpi-expandable" onclick="toggleAllKpis()">
+      <div class="kpi-card-header"><div class="kpi-label">${label}</div>${chevron}</div>
+      <div class="kpi-value ${cls}">${value}</div>
+      <div class="kpi-sub ${cls}">${sub||'&nbsp;'}</div>
+      <div class="kpi-exp-body" id="kpi-exp-${id}">${rowsHtml}</div>
+    </div>`;
+  };
+
+  // Gross fees card — expandable with region breakdown if >1 region
+  const feesExpRows=regionFees.length>1?regionFees:[];
+  const feesCard=feesExpRows.length>0
+    ? `<div class="kpi-card kpi-expandable" onclick="toggleAllKpis()">
+        <div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>
+        <div class="kpi-value">${D(tG)}</div>
+        <div class="kpi-sub">${legLabel}</div>
+        <div class="kpi-exp-body" id="kpi-exp-fees">${feesExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>
+      </div>`
+    : `<div class="kpi-card"><div class="kpi-label">Total gross fees</div><div class="kpi-value">${D(tG)}</div><div class="kpi-sub">${legLabel}</div></div>`;
+
+  // Row 1
+  document.getElementById('ov-kpis-row1').innerHTML=
+    feesCard+
+    expCard('comm','',   'Commission',   D(tCm), '', [['Management (17.5%)',D(tMgmt)],['Agent (10%)',D(tAgent)]])+
+    expCard('alloc','',  'Allocations',  D(tAl), '', [['Marketing',D(tMkt)],['Salary',D(tSal)],['Ops',D(tOps)]])+
+    expCard('costs','',  'Tour costs',   D(tCo), '', [['Flights',D(tFl)],['Hotels',D(tHt)],['Wages',D(tWg)],['Production',D(tPr)],['Ground transport',D(tGt)],['Media',D(tMd)],['Misc',D(tMs)]]);
+
+  // Per-region net profit and margin breakdown
+  const regionPnl=REGION_ORDER.filter(r=>selectedRegions.has(r)).map(r=>{
+    const rRows=rows.filter(x=>x.inRegion&&x.inSel&&x.region===r);
+    if(!rRows.length)return null;
+    const rG=rRows.reduce((s,x)=>s+x.c.gross,0);
+    const rN=rRows.reduce((s,x)=>s+x.c.net,0);
+    const rM=rG>0?rN/rG:0;
+    return{r,rN,rM};
+  }).filter(Boolean);
+
+  const netExpRows=regionPnl.length>1?regionPnl.map(({r,rN})=>[r,D(rN)]):[];
+  const marginExpRows=regionPnl.length>1?regionPnl.map(({r,rM})=>[r,P(rM)]):[];
+
+  const netCard=netExpRows.length>0
+    ?`<div class="kpi-card ${kc} kpi-expandable" onclick="toggleAllKpis()">
+        <div class="kpi-card-header"><div class="kpi-label">Net profit</div>${chevron}</div>
+        <div class="kpi-value ${kc}">${D(tN)}</div>
+        <div class="kpi-sub ${kc}">&nbsp;</div>
+        <div class="kpi-exp-body" id="kpi-exp-net">${netExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>
+      </div>`
+    :`<div class="kpi-card ${kc}"><div class="kpi-label">Net profit</div><div class="kpi-value ${kc}">${D(tN)}</div><div class="kpi-sub">&nbsp;</div></div>`;
+
+  const marginCard=marginExpRows.length>0
+    ?`<div class="kpi-card ${kc} kpi-expandable" onclick="toggleAllKpis()">
+        <div class="kpi-card-header"><div class="kpi-label">Blended margin</div>${chevron}</div>
+        <div class="kpi-value ${kc}">${P(bm)}</div>
+        <div class="kpi-sub ${kc}">Target: ${P(ovTarget)}</div>
+        <div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>
+      </div>`
+    :`<div class="kpi-card ${kc}"><div class="kpi-label">Blended margin</div><div class="kpi-value ${kc}">${P(bm)}</div><div class="kpi-sub ${kc}">Target: ${P(ovTarget)}</div></div>`;
+
+  // Row 2
+  document.getElementById('ov-kpis-row2').innerHTML=
+    netCard+marginCard+
+    `<div class="kpi-card ${tAr>0?'amber':'green'}"><div class="kpi-label">Addl. revenue needed</div><div class="kpi-value ${tAr>0?'amber':'green'}">${tAr>0?D(tAr):'—'}</div></div>`+
+    `<div class="kpi-card ${tCs>0?'amber':'green'}"><div class="kpi-label">Cost saving needed</div><div class="kpi-value ${tCs>0?'amber':'green'}">${tCs>0?D(tCs):'—'}</div></div>`;
+  // Leg rows — table (desktop) — only show filtered legs
+  const visibleRows=rows.filter(r=>r.inRegion&&r.inSel);
+
+  // Classify into sections by name prefix
+  const legType=name=>{
+    const prefix=parseInt((name.match(/^(\d+)/)||[0,0])[1])||0;
+    if(prefix===0)return'ops';
+    if(prefix<100)return'residencies';
+    return'tours';
+  };
+
+  const makeTableRow=({c,lid,lname})=>`
+    <tr>
+      <td class="leg-name">${lname}</td>
+      <td class="num">${D(c.gross)}</td><td class="num">${D(c.comm)}</td>
+      <td class="num">${D(c.alloc)}</td><td class="num">${D(c.costs)}</td>
+      <td class="num">${D(c.net)}</td><td class="num">${P(c.margin)}</td>
+      <td class="num">${c.addRev>0?D(c.addRev):DASH}</td>
+      <td class="num">${c.costSav>0?D(c.costSav):DASH}</td>
+      <td class="num">${c.wht>0?D(c.wht):DASH}</td>
+      <td>${pill(c.margin,ovTarget)}</td>
+      <td><button class="drill-btn" onclick="drillTo('${lid}')">Detail →</button></td>
+    </tr>`;
+
+  const makeCard=({c,lid,lname})=>{
+    const at=c.margin>=ovTarget;
+    const mc=at?'green':c.margin>=ovTarget-0.05?'amber':'red';
+    return`<div class="leg-card">
+      <div class="leg-card-header"><div class="leg-card-name">${lname}</div>${pill(c.margin,ovTarget)}</div>
+      <div class="leg-card-grid">
+        <div class="leg-card-item"><div class="leg-card-label">Gross fee</div><div class="leg-card-value">${D(c.gross)}</div></div>
+        <div class="leg-card-item"><div class="leg-card-label">Commission</div><div class="leg-card-value">${D(c.comm)}</div></div>
+        <div class="leg-card-item"><div class="leg-card-label">Allocations</div><div class="leg-card-value">${D(c.alloc)}</div></div>
+        <div class="leg-card-item"><div class="leg-card-label">Tour costs</div><div class="leg-card-value">${D(c.costs)}</div></div>
+        <div class="leg-card-item"><div class="leg-card-label">Net profit</div><div class="leg-card-value ${mc}">${D(c.net)}</div></div>
+        <div class="leg-card-item"><div class="leg-card-label">Margin</div><div class="leg-card-value ${mc}">${P(c.margin)}</div></div>
+        ${c.addRev>0?`<div class="leg-card-item"><div class="leg-card-label">Addl. revenue</div><div class="leg-card-value amber">${D(c.addRev)}</div></div>`:''}
+        ${c.wht>0?`<div class="leg-card-item"><div class="leg-card-label">WHT</div><div class="leg-card-value">${D(c.wht)}</div></div>`:''}
+      </div>
+      <div class="leg-card-footer">
+        <span style="font-size:10px;color:var(--g400)">Target: ${P(ovTarget)}</span>
+        <button class="drill-btn" onclick="drillTo('${lid}')">Leg detail →</button>
+      </div>
+    </div>`;
+  };
+
+  const makeTotalsRow=(sRows,label)=>{
+    if(sRows.length<=1)return'';
+    const sG=sRows.reduce((s,r)=>s+r.c.gross,0);
+    const sCm=sRows.reduce((s,r)=>s+r.c.comm,0);
+    const sAl=sRows.reduce((s,r)=>s+r.c.alloc,0);
+    const sCo=sRows.reduce((s,r)=>s+r.c.costs,0);
+    const sN=sRows.reduce((s,r)=>s+r.c.net,0);
+    const sBm=sG>0?sN/sG:0;
+    const sAr=sRows.reduce((s,r)=>s+r.c.addRev,0);
+    const sCs=sRows.reduce((s,r)=>s+r.c.costSav,0);
+    const sWht=sRows.reduce((s,r)=>s+r.c.wht,0);
+    return`<tr style="background:var(--g50);font-weight:bold;border-top:0.5px solid var(--g100);">
+      <td class="leg-name" style="color:var(--g600)">${label}</td>
+      <td class="num">${D(sG)}</td><td class="num">${D(sCm)}</td>
+      <td class="num">${D(sAl)}</td><td class="num">${D(sCo)}</td>
+      <td class="num">${D(sN)}</td><td class="num">${P(sBm)}</td>
+      <td class="num">${sAr>0?D(sAr):DASH}</td><td class="num">${sCs>0?D(sCs):DASH}</td>
+      <td class="num">${sWht>0?D(sWht):DASH}</td>
+      <td>${pill(sBm,ovTarget)}</td><td></td>
+    </tr>`;
+  };
+
+  // Render each section — cards only
+  ['residencies','tours','ops'].forEach(sec=>{
+    const sRows=visibleRows.filter(r=>legType(r.lname)===sec);
+    const cards=document.getElementById('ov-cards-'+sec);
+    const meta=document.getElementById('ov-'+sec+'-meta');
+    if(cards) cards.innerHTML=sRows.map(makeCard).join('')||'<p style="color:var(--g400);font-size:12px;padding:8px 0;">No legs</p>';
+    if(meta){
+      const sG=sRows.reduce((s,r)=>s+r.c.gross,0);
+      meta.textContent=sRows.length?`${sRows.length} leg${sRows.length!==1?'s':''}  ·  ${D(sG)} gross`:'';
+    }
+  });
+
+  // Update salary section meta
+  const salMeta=document.getElementById('ov-salary-meta');
+  if(salMeta) salMeta.textContent='';
+}
+
+function onOvSlider(v){ovTarget=v/100;document.getElementById('ov-slider-val').textContent=v+'%';buildOverview();}
+
+function toggleSection(id){
+  const body=document.getElementById('ov-'+id+'-body');
+  const chev=document.getElementById('ov-'+id+'-chev');
+  if(!body)return;
+  const open=body.classList.toggle('open');
+  if(chev)chev.classList.toggle('open',open);
+}
+
+function toggleAllKpis(){
+  const bodies=document.querySelectorAll('#ov-kpis-row1 .kpi-exp-body, #ov-kpis-row2 .kpi-exp-body');
+  if(!bodies.length)return;
+  const anyOpen=[...bodies].some(b=>b.classList.contains('open'));
+  bodies.forEach(b=>{
+    b.classList.toggle('open',!anyOpen);
+    b.closest('.kpi-card')?.classList.toggle('expanded',!anyOpen);
+  });
+}
+
+function buildDrillControls(){
+  const sel=document.getElementById('dd-leg-select');
+  sel.innerHTML=tourLegs.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  if(tourLegs.length){
+    selLegId=tourLegs[0].id;
+    buildVersionSelect(selLegId);
+    buildDrill();
+  }
+}
+
+function buildVersionSelect(lid){
+  // Current is always first, hardcoded — reads live from Tour Legs
+  // Then snapshot versions from Budget Versions, sorted by Version Date desc
+  const snapshots=allVersions
+    .filter(v=>(v['Tour Leg']||[]).includes(lid))
+    .sort((a,b)=>new Date(b['Version Date']||0)-new Date(a['Version Date']||0));
+
+  const sel=document.getElementById('dd-ver-select');
+  sel.innerHTML=`<option value="__current__">Current</option>`+
+    snapshots.map(v=>`<option value="${v.id}">${v['Version']||v['Version Date']||'Snapshot'}</option>`).join('');
+
+  // Default to Current
+  sel.value='__current__';
+  selVersion={id:'__current__',_isLive:true,_legId:lid};
+  _applyLegToVersion(lid);
+}
+
+function _applyLegToVersion(lid){
+  // When "Current" selected, pull live data from Tour Legs record
+  const leg=tourLegs.find(l=>l.id===lid);
+  if(leg) selVersion={...leg,id:'__current__',_isLive:true,_legId:lid};
+}
+
+function onLegChange(){
+  selLegId=document.getElementById('dd-leg-select').value;
+  buildVersionSelect(selLegId);
+  buildDrill();
+}
+
+function onVersionChange(){
+  const val=document.getElementById('dd-ver-select').value;
+  if(val==='__current__'){
+    _applyLegToVersion(selLegId);
+  } else {
+    // Snapshot — read from Budget Versions, but actuals still from Tour Legs
+    const snap=allVersions.find(v=>v.id===val);
+    const leg=tourLegs.find(l=>l.id===selLegId);
+    if(snap&&leg){
+      // Merge: snapshot budget fields + live actuals from Tour Legs
+      selVersion={
+        ...snap,
+        _isLive:false,
+        _legId:selLegId,
+        // Live actuals always from Tour Legs
+        'Flights Actual':leg['Flights Actual'],
+        'Hotels Actual':leg['Hotels Actual'],
+        'Wages Actual':leg['Wages Actual'],
+        'Production Actual':leg['Production Actual'],
+        'Ground Transport Actual':leg['Ground Transport Actual'],
+        'Media Actual':leg['Media Actual'],
+        'Misc Actual':leg['Misc Actual'],
+        'Total Tour Costs Actual':leg['Total Tour Costs Actual'],
+        'Overall Invoiced %':leg['Overall Invoiced %'],
+      };
+    }
+  }
+  buildDrill();
+}
+function onDdSlider(v){ddTarget=v/100;document.getElementById('dd-slider-val').textContent=v+'%';buildDrill();}
+
+function drillTo(lid){
+  if(!lid||lid==='null')return;
+  showPage('drilldown');
+  document.getElementById('dd-leg-select').value=lid;
+  selLegId=lid;
+  buildVersionSelect(lid);
+  buildDrill();
+}
+
+function buildDrill(){
+  if(!selVersion)return;
+  const v=selVersion, c=compute(v,ddTarget);
+  const lname=v.name||v['Name']||tourLegs.find(l=>l.id===selLegId)?.name||'—';
+  const isLive=v._isLive!==false;
+  const at=c.margin>=ddTarget;
+
+  document.getElementById('dd-leg-name').textContent=lname;
+  const badge=document.getElementById('dd-badge');
+  badge.style.display=isLive?'inline-block':'none';
+  if(!isLive){
+    // Show snapshot version label
+    const snapLabel=v['Version']||v['Version Date']||'Snapshot';
+    badge.textContent=snapLabel; badge.className='pill amber'; badge.style.display='inline-block';
+  }
+
+  // Insight banner
+  let ic='',it='';
+  if(at){ic='green';it=`<strong>${lname}</strong> is at or above the ${P(ddTarget)} target. No additional revenue or cost savings required at current budget.`;}
+  else{const gap=ddTarget-c.margin;ic=gap<0.05?'amber':'red';it=`<strong>${lname}</strong> is ${P(gap)} below the ${P(ddTarget)} target. Needs either <strong>${D(c.addRev)}</strong> in additional fees or <strong>${D(c.costSav)}</strong> in tour cost reductions.`;}
+  document.getElementById('dd-insight').innerHTML=`<div class="insight-banner ${ic}">${it}</div>`;
+
+  // KPI cards — show Budget margin as primary, Actual margin if available
+  const hasAct=c.costsAct>0;
+  const invoicedPct=c.invoicedPct>0?`${(c.invoicedPct*100).toFixed(0)}% invoiced`:'';
+  document.getElementById('dd-kpis').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Gross fee</div><div class="kpi-value">${D(c.gross)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tour costs (budget)</div><div class="kpi-value">${D(c.costs)}</div>${invoicedPct?`<div class="kpi-sub">${invoicedPct}</div>`:''}</div>
+    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">Net profit</div><div class="kpi-value ${at?'green':'red'}">${D(c.net)}</div></div>
+    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">Margin</div><div class="kpi-value ${at?'green':'red'}">${P(c.margin)}</div></div>
+    <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Addl. revenue for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="kpi-sub">in additional fees</div></div>
+    <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Cost saving for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="kpi-sub">holding revenue constant</div></div>
+  `;
+
+  // P&L — split commissions
+  document.getElementById('dd-pnl').innerHTML=`
+    <tr><td class="pnl-name">Gross fee</td><td class="pnl-pct">—</td><td class="pnl-amt">${D(c.gross)}</td></tr>
+    <tr><td class="pnl-name">Commission (subtotal)</td><td class="pnl-pct">${P(c.cp)}</td><td class="pnl-amt neg">-${D(c.comm)}</td></tr>
+    <tr><td class="pnl-indent">— Management (MGMT)</td><td class="pnl-pct">${P(c.mgmt)}</td><td class="pnl-amt">-${D(c.mgmtComm)}</td></tr>
+    <tr><td class="pnl-indent">— Agent (Wasserman)</td><td class="pnl-pct">${P(c.agent)}</td><td class="pnl-amt">-${D(c.agentComm)}</td></tr>
+    <tr><td class="pnl-name">Allocations (subtotal)</td><td class="pnl-pct">${P(c.ap)}</td><td class="pnl-amt neg">-${D(c.alloc)}</td></tr>
+    <tr><td class="pnl-indent">— Marketing</td><td class="pnl-pct">${P(c.mp)}</td><td class="pnl-amt">-${D(c.mktAlloc)}</td></tr>
+    <tr><td class="pnl-indent">— Salary (off-road)</td><td class="pnl-pct">${P(c.sp)}</td><td class="pnl-amt">-${D(c.salAlloc)}</td></tr>
+    <tr><td class="pnl-indent">— Ops</td><td class="pnl-pct">${P(c.op)}</td><td class="pnl-amt">-${D(c.opsAlloc)}</td></tr>
+    <tr><td class="pnl-name">Tour costs</td><td class="pnl-pct">—</td><td class="pnl-amt neg">-${D(c.costs)}</td></tr>
+    <tr class="pnl-total"><td class="pnl-name">Net profit</td><td class="pnl-pct">${P(c.margin)}</td><td class="pnl-amt">${D(c.net)}</td></tr>
+    ${c.wht>0?`<tr><td class="pnl-name" style="color:var(--g600)">WHT (ex-line)</td><td class="pnl-pct">—</td><td class="pnl-amt neg">-${D(c.wht)}</td></tr><tr class="pnl-total"><td class="pnl-name">Net profit after WHT</td><td class="pnl-pct">—</td><td class="pnl-amt">${D(c.net-c.wht)}</td></tr>`:''}
+  `;
+
+  // Planning targets
+  document.getElementById('dd-planning').innerHTML=`
+    <div class="pm-cell"><div class="pm-label">Target margin</div><div class="pm-value">${P(ddTarget)}</div></div>
+    <div class="pm-cell"><div class="pm-label">Target net profit</div><div class="pm-value">${D(c.tnet)}</div></div>
+    <div class="pm-cell"><div class="pm-label">Gap to target</div><div class="pm-value ${at?'green':'red'}">${at?'—':D(c.gap)}</div><div class="pm-note">${at?'On target':'Positive = below target'}</div></div>
+    <div class="pm-cell"><div class="pm-label">Addl. revenue needed</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="pm-note">Accounts for commission & alloc on new revenue</div></div>
+    <div class="pm-cell"><div class="pm-label">Cost saving needed</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="pm-note">Holding revenue constant</div></div>
+    <div class="pm-cell"><div class="pm-label">At target?</div><div class="pm-value ${at?'green':'red'}">${at?'Yes':'No'}</div></div>
+  `;
+
+  // Cost breakdown — 7 categories, actuals always from live Tour Legs
+  const cats=[
+    {key:'Flights',      budget:c.fl,  actual:c.flAct,  hasAct:c.flAct>0,  notes:v['Flights Notes']},
+    {key:'Hotels',       budget:c.ht,  actual:c.htAct,  hasAct:c.htAct>0,  notes:v['Hotels Notes']},
+    {key:'Wages',        budget:c.wg,  actual:c.wgAct,  hasAct:c.wgAct>0,  notes:v['Wages Notes']},
+    {key:'Production',   budget:c.pr,  actual:c.prAct,  hasAct:c.prAct>0,  notes:v['Production Notes']},
+    {key:'Ground transport', budget:c.gt, actual:c.gtAct, hasAct:c.gtAct>0, notes:v['Ground Transport Notes']},
+    {key:'Media',        budget:c.md,  actual:c.mdAct,  hasAct:c.mdAct>0,  notes:v['Media Notes']},
+    {key:'Misc',         budget:c.ms,  actual:c.msAct,  hasAct:c.msAct>0,  notes:v['Misc Notes']},
+  ];
+
+  const totalActual=c.costsAct;
+  const totalVariance=totalActual>0?c.costs-totalActual:null;
+
+  document.getElementById('dd-costs').innerHTML=
+    `<div class="cost-col-header" style="padding-left:var(--cp)">
+      <span class="cost-col-label">Category</span>
+      <span class="cost-col-label">Budget</span>
+      <span class="cost-col-label">Actual</span>
+      <span class="cost-col-label">Variance</span>
+      <span class="cost-col-label">Status</span>
+    </div>`+
+    cats.map((cat,i)=>{
+      const variance=cat.hasAct?cat.budget-cat.actual:null;
+      const sp=variance!=null?(variance>=0?'<span class="pill green">Under</span>':'<span class="pill red">Over budget</span>'):'<span class="pill gray">Pending</span>';
+      return`
+        <div class="cost-cat-row" onclick="toggleCat(${i})">
+          <div class="cost-cat-name">
+            <span class="cost-chevron" id="chev-${i}">▶</span>
+            ${cat.key}
+            ${!cat.hasAct?'<span class="pill gray" style="font-size:7px">Actuals pending</span>':''}
+          </div>
+          <div class="cost-cat-num">${D(cat.budget)}</div>
+          <div class="cost-cat-num">${cat.hasAct?D(cat.actual):DASH}</div>
+          <div class="cost-cat-num">${varStr(variance)}</div>
+          <div>${sp}</div>
+        </div>
+        <div class="cost-body" id="cat-${i}">
+          ${cat.notes?`<div class="version-notes"><div class="version-notes-tag">Version notes</div>${cat.notes}</div>`:''}
+        </div>`;
+    }).join('')+
+    `<div class="cost-totals">
+      <span class="cost-totals-label">Tour costs total</span>
+      <span class="cost-totals-num">${D(c.costs)}</span>
+      <span class="cost-totals-num">${totalActual>0?D(totalActual):DASH}</span>
+      <span class="cost-totals-num">${varStr(totalVariance)}</span>
+      <span></span>
+    </div>
+    ${c.wht>0?`<div style="padding:9px var(--cp);border-top:0.5px solid var(--g100);font-style:italic;color:var(--g600);font-size:11px;display:flex;justify-content:space-between"><span>WHT (ex-line)</span><span style="font-family:var(--fd)">-${D(c.wht)}</span></div>`:''}`;
+}
+
+function toggleCat(i){document.getElementById('cat-'+i).classList.toggle('open');document.getElementById('chev-'+i).classList.toggle('open');}
+
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  // Show home button as active link only when on leg detail page
+  document.getElementById('hdr-home-btn').style.opacity=name==='overview'?'1':'0.6';
+}
+</script>
+</body>
+</html>
