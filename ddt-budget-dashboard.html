@@ -1246,17 +1246,6 @@ function buildOverview(){
     </div>`;
   };
 
-  // Gross fees card — expandable with region breakdown if >1 region
-  const feesExpRows=regionFees.length>1?regionFees:[];
-  const feesCard=feesExpRows.length>0
-    ? `<div class="kpi-card kpi-expandable" onclick="toggleAllKpis()">
-        <div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>
-        <div class="kpi-value">${D(tG)}</div>
-        <div class="kpi-sub">${showLabel}</div>
-        <div class="kpi-exp-body" id="kpi-exp-fees">${feesExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>
-      </div>`
-    : `<div class="kpi-card"><div class="kpi-label">Total gross fees</div><div class="kpi-value">${D(tG)}</div><div class="kpi-sub">${showLabel}</div></div>`;
-
   // To-date leg IDs — legs with at least one offer/confirmed show on or before today
   const today=new Date(); today.setHours(0,0,0,0);
   const legIdsToDate=new Set(
