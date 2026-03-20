@@ -106,22 +106,25 @@ nav{display:flex;gap:2px;}
 .page.active{display:block;}
 
 /* KPI */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--cg);margin-bottom:var(--cg);}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--cg);margin-bottom:var(--cg);align-items:start;}
 .kpi-row-6{grid-template-columns:repeat(6,1fr);}
 .kpi-toggle-link{margin-top:12px;padding-top:10px;border-top:0.5px solid var(--g100);font-family:var(--fu);font-size:9px;color:var(--g400);cursor:pointer;line-height:1.5;}
 .kpi-toggle-link span{color:var(--g600);text-decoration:underline;text-underline-offset:2px;}
 .kpi-toggle-link:hover span{color:var(--black);}
 .kpi-card{background:var(--g50);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);display:flex;flex-direction:column;}
+.kpi-card.flipping{animation:kpiFlip 0.4s cubic-bezier(0.4,0,0.2,1);}
+@keyframes kpiFlip{0%{transform:rotateY(0deg) scale(1);}40%{transform:rotateY(90deg) scale(0.96);}60%{transform:rotateY(-90deg) scale(0.96);}100%{transform:rotateY(0deg) scale(1);}}
 .kpi-card.green{background:var(--green50);}
 .kpi-card.amber{background:var(--amber50);}
 .kpi-card.red{background:var(--red50);}
 .kpi-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.08em;margin-bottom:6px;}
-.kpi-value{font-family:var(--fd);font-size:16px;font-weight:bold;color:var(--black);line-height:1.1;}
+.kpi-value{font-family:var(--fd);font-size:16px;font-weight:bold;color:var(--black);line-height:1.1;min-height:22px;}
 .kpi-value.green{color:var(--green800);}
 .kpi-value.amber{color:var(--amber800);}
 .kpi-value.red{color:var(--red800);}
 .kpi-sub{font-size:10px;color:var(--g400);margin-top:3px;min-height:16px;}
 .kpi-sub.green{color:var(--green600);}
+.kpi-exp-disclaimer{font-family:var(--fu);font-size:9px;color:var(--g400);margin-top:8px;line-height:1.5;padding-top:8px;border-top:0.5px solid var(--g100);}
 
 /* SLIDER - drill-down inline only */
 .slider-row{display:flex;align-items:center;gap:12px;padding:10px var(--cp);border-bottom:0.5px solid var(--g100);}
@@ -254,8 +257,10 @@ select:focus{border-color:var(--g400);}
 .kpi-exp-body.open{display:block;}
 .kpi-exp-body::before{content:'';display:block;height:0.5px;background:var(--g100);margin-bottom:10px;}
 .kpi-exp-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;}
+.kpi-exp-row3{display:grid;grid-template-columns:1fr auto auto;gap:0 12px;align-items:baseline;padding:3px 0;}
 .kpi-exp-label{font-family:var(--fu);font-size:9px;color:var(--g400);}
-.kpi-exp-val{font-family:var(--fd);font-size:11px;color:var(--g600);}
+.kpi-exp-val{font-family:var(--fd);font-size:11px;color:var(--g600);text-align:right;}
+.kpi-exp-pct{font-family:var(--fu);font-size:9px;color:var(--g400);text-align:right;min-width:28px;}
 
 /* LEG CARDS */
 .leg-card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);margin-bottom:var(--cg);}
@@ -1312,15 +1317,15 @@ function buildOverview(){
   const netExpRows=regionPnl.length>1?regionPnl.map(({r,rN})=>[r,D(rN)]):[];
   const marginExpRows=regionPnl.length>1?regionPnl.map(({r,rM})=>[r,P(rM)]):[];
 
-  // Region fees — view-aware
+  // Region fees rows — 3 col: name / amount / pct
   const regionFeesV=REGION_ORDER.filter(r=>selectedRegions.has(r)).map(r=>{
     const rRows=rows.filter(x=>x.inRegion&&x.inSel&&x.region===r&&(isTd?legIdsToDate.has(x.lid):true));
     const rTotal=rRows.reduce((s,x)=>s+x.c.gross,0);
     if(rTotal===0)return null;
     const base=isTd?tdG:tG;
     const pct=base>0?((rTotal/base)*100).toFixed(0)+'%':'—';
-    return[r,`${D(rTotal)} <span style="color:var(--g400);font-size:9px">${pct}</span>`];
-  }).filter(Boolean);
+    return`<div class="kpi-exp-row3"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${D(rTotal)}</span><span class="kpi-exp-pct">${pct}</span></div>`;
+  }).filter(Boolean).join('');
 
   // Card builders
   const expCardV=(id,cls,label,fyVal,tdVal,expRows,fmtFn=D)=>{
@@ -1333,13 +1338,13 @@ function buildOverview(){
     </div>`;
   };
 
-  // Gross fees card
-  const feesExpRowsV=regionFeesV.length>1?regionFeesV:[];
-  const feesCard=`<div class="kpi-card${feesExpRowsV.length>0?' kpi-expandable':''}" ${feesExpRowsV.length>0?'onclick="toggleAllKpis()"':''}>
-    ${feesExpRowsV.length>0?`<div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>`:`<div class="kpi-label">Total gross fees</div>`}
+  // Gross fees card — 3-col region rows
+  const hasRegionFees=regionFeesV.length>0;
+  const feesCard=`<div class="kpi-card${hasRegionFees?' kpi-expandable':''}" ${hasRegionFees?'onclick="toggleAllKpis()"':''}>
+    ${hasRegionFees?`<div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>`:`<div class="kpi-label">Total gross fees</div>`}
     <div class="kpi-value">${D(val(tG,tdG))}</div>
     <div class="kpi-sub" style="margin-top:6px;color:var(--g400)">${currentShowLabel} · ${viewLabel}</div>
-    ${feesExpRowsV.length>0?`<div class="kpi-exp-body" id="kpi-exp-fees">${feesExpRowsV.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}${toggleLink}</div>`:''}
+    ${hasRegionFees?`<div class="kpi-exp-body" id="kpi-exp-fees">${regionFeesV}${toggleLink}</div>`:''}
   </div>`;
 
   document.getElementById('ov-kpis-row1').innerHTML=
@@ -1348,27 +1353,42 @@ function buildOverview(){
     expCardV('alloc','','Allocations',tAl,tdAl,[['Marketing',D(val(tMkt,tdMkt))],['Salary',D(val(tSal,tdSal))],['Ops',D(val(tOps,tdOps))]])+
     expCardV('costs','','Tour costs',tCo,tdCo,[['Flights',D(val(tFl,tdFl))],['Hotels',D(val(tHt,tdHt))],['Wages',D(val(tWg,tdWg))],['Production',D(val(tPr,tdPr))],['Ground transport',D(val(tGt,tdGt))],['Media',D(val(tMd,tdMd))],['Misc',D(val(tMs,tdMs))]]);
 
+  // Net profit and margin — 3-col region rows
   const netVal=val(tN,tdN);
   const marginVal=val(bm,tdM);
+  const netExpRowsHtml=regionPnl.length>1?regionPnl.map(({r,rN,rM})=>
+    `<div class="kpi-exp-row3"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${D(rN)}</span><span class="kpi-exp-pct">${P(rM)}</span></div>`
+  ).join(''):'';
+  const marginExpRowsHtml=regionPnl.length>1?regionPnl.map(({r,rM})=>
+    `<div class="kpi-exp-row3"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${P(rM)}</span><span class="kpi-exp-pct"></span></div>`
+  ).join(''):'';
 
-  const netCard=`<div class="kpi-card ${kc}${netExpRows.length>0?' kpi-expandable':''}" ${netExpRows.length>0?'onclick="toggleAllKpis()"':''}>
-    ${netExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Net profit</div>${chevron}</div>`:`<div class="kpi-label">Net profit</div>`}
+  const netCard=`<div class="kpi-card ${kc}${netExpRowsHtml?' kpi-expandable':''}" ${netExpRowsHtml?'onclick="toggleAllKpis()"':''}>
+    ${netExpRowsHtml?`<div class="kpi-card-header"><div class="kpi-label">Net profit</div>${chevron}</div>`:`<div class="kpi-label">Net profit</div>`}
     <div class="kpi-value ${kc}">${D(netVal)}</div>
-    ${netExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-net">${netExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}${toggleLink}</div>`:toggleLink}
+    ${netExpRowsHtml?`<div class="kpi-exp-body" id="kpi-exp-net">${netExpRowsHtml}${toggleLink}</div>`:toggleLink}
   </div>`;
 
-  const marginCard=`<div class="kpi-card ${kc}${marginExpRows.length>0?' kpi-expandable':''}" ${marginExpRows.length>0?'onclick="toggleAllKpis()"':''}>
-    ${marginExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Blended margin</div>${chevron}</div>`:`<div class="kpi-label">Blended margin</div>`}
+  const marginCard=`<div class="kpi-card ${kc}${marginExpRowsHtml?' kpi-expandable':''}" ${marginExpRowsHtml?'onclick="toggleAllKpis()"':''}>
+    ${marginExpRowsHtml?`<div class="kpi-card-header"><div class="kpi-label">Blended margin</div>${chevron}</div>`:`<div class="kpi-label">Blended margin</div>`}
     <div class="kpi-value ${kc}">${P(marginVal)}</div>
     <div class="kpi-sub ${kc}" style="margin-top:4px">Target: ${P(ovTarget)}</div>
-    ${marginExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}${toggleLink}</div>`:toggleLink}
+    ${marginExpRowsHtml?`<div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRowsHtml}${toggleLink}</div>`:toggleLink}
   </div>`;
 
   // Row 2
   document.getElementById('ov-kpis-row2').innerHTML=
     netCard+marginCard+
-    `<div class="kpi-card ${tAr>0?'amber':'green'}"><div class="kpi-label">Addl. revenue needed</div><div class="kpi-value ${tAr>0?'amber':'green'}">${tAr>0?D(tAr):'—'}</div></div>`+
-    `<div class="kpi-card ${tCs>0?'amber':'green'}"><div class="kpi-label">Cost saving needed</div><div class="kpi-value ${tCs>0?'amber':'green'}">${tCs>0?D(tCs):'—'}</div></div>`;
+    `<div class="kpi-card ${tAr>0?'amber':'green'} kpi-expandable" onclick="toggleAllKpis()">
+      <div class="kpi-card-header"><div class="kpi-label">Addl. revenue needed</div>${chevron}</div>
+      <div class="kpi-value ${tAr>0?'amber':'green'}">${tAr>0?D(tAr):'—'}</div>
+      <div class="kpi-exp-body" id="kpi-exp-ar"><div class="kpi-exp-disclaimer">The additional gross revenue required to hit the target margin, after accounting for commission and allocation erosion on that new income.</div></div>
+    </div>`+
+    `<div class="kpi-card ${tCs>0?'amber':'green'} kpi-expandable" onclick="toggleAllKpis()">
+      <div class="kpi-card-header"><div class="kpi-label">Cost saving needed</div>${chevron}</div>
+      <div class="kpi-value ${tCs>0?'amber':'green'}">${tCs>0?D(tCs):'—'}</div>
+      <div class="kpi-exp-body" id="kpi-exp-cs"><div class="kpi-exp-disclaimer">The reduction in total tour costs required to hit the target margin, holding gross fees constant.</div></div>
+    </div>`;
   // Leg rows — table (desktop) — only show filtered legs
   const visibleRows=rows.filter(r=>r.inRegion&&r.inSel);
 
@@ -1468,8 +1488,26 @@ function toggleSection(id){
 
 let kpiView='fy'; // 'fy' = full year, 'td' = to date
 function toggleKpiView(){
+  // Save which exp bodies are open
+  const openIds=new Set([...document.querySelectorAll('.kpi-exp-body.open')].map(el=>el.id));
   kpiView=kpiView==='fy'?'td':'fy';
   buildOverview();
+  // Restore open state
+  openIds.forEach(id=>{
+    const body=document.getElementById(id);
+    if(body){
+      body.classList.add('open');
+      const card=body.closest('.kpi-expandable');
+      if(card){card.classList.add('expanded');const chev=card.querySelector('.kpi-chevron');if(chev)chev.style.transform='rotate(180deg)';}
+    }
+  });
+  // Trigger flip animation on all kpi cards
+  document.querySelectorAll('.kpi-card').forEach(card=>{
+    card.classList.remove('flipping');
+    void card.offsetWidth; // reflow
+    card.classList.add('flipping');
+    card.addEventListener('animationend',()=>card.classList.remove('flipping'),{once:true});
+  });
 }
 
 function toggleAllKpis(){
