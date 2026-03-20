@@ -1149,21 +1149,38 @@ function onRegionChange(){
   afterRegionChange();
 }
 
+function restoreOpenCards(openIds){
+  openIds.forEach(id=>{
+    const body=document.getElementById(id);
+    if(body){
+      body.classList.add('open');
+      const card=body.closest('.kpi-expandable');
+      if(card){card.classList.add('expanded');const chev=card.querySelector('.kpi-chevron');if(chev)chev.style.transform='rotate(180deg)';}
+    }
+  });
+}
+function saveOpenCards(){return new Set([...document.querySelectorAll('.kpi-exp-body.open')].map(el=>el.id));}
+
 function afterRegionChange(){
+  const open=saveOpenCards();
   const visible=getVisibleLegs();
   buildLegCheckboxes(visible);
   updateRegionLabel();
   updateFilterLabel();
   buildOverview();
+  restoreOpenCards(open);
 }
 function onFilterAll(cb){
+  const open=saveOpenCards();
   const allIds=[...document.querySelectorAll('#ov-filter-panel input[value]')].map(i=>i.value);
   document.querySelectorAll('#ov-filter-panel input').forEach(i=>i.checked=true);
   selectedLegIds=new Set(allIds);
   updateFilterLabel(); buildOverview();
+  restoreOpenCards(open);
 }
 
 function onFilterLeg(){
+  const open=saveOpenCards();
   const checked=[...document.querySelectorAll('#ov-filter-panel input[value]:checked')].map(i=>i.value);
   if(checked.length===0){
     document.querySelectorAll('#ov-filter-panel input[value]').forEach(i=>i.checked=true);
@@ -1175,6 +1192,7 @@ function onFilterLeg(){
   const fltAll=document.getElementById('flt-all');
   if(fltAll) fltAll.checked=selectedLegIds.size===total;
   updateFilterLabel(); buildOverview();
+  restoreOpenCards(open);
 }
 
 function updateRegionLabel(){
@@ -1477,7 +1495,13 @@ function buildOverview(){
   if(salMeta) salMeta.textContent='';
 }
 
-function onOvSlider(v){ovTarget=v/100;document.getElementById('ov-slider-val').textContent=v+'%';buildOverview();}
+function onOvSlider(v){
+  const open=saveOpenCards();
+  ovTarget=v/100;
+  document.getElementById('ov-slider-val').textContent=v+'%';
+  buildOverview();
+  restoreOpenCards(open);
+}
 
 function toggleSection(id){
   const body=document.getElementById('ov-'+id+'-body');
@@ -1491,20 +1515,10 @@ function toggleSection(id){
 
 let kpiView='fy'; // 'fy' = full year, 'td' = to date
 function toggleKpiView(){
-  // Save which exp bodies are open
-  const openIds=new Set([...document.querySelectorAll('.kpi-exp-body.open')].map(el=>el.id));
+  const open=saveOpenCards();
   kpiView=kpiView==='fy'?'td':'fy';
   buildOverview();
-  // Restore open state
-  openIds.forEach(id=>{
-    const body=document.getElementById(id);
-    if(body){
-      body.classList.add('open');
-      const card=body.closest('.kpi-expandable');
-      if(card){card.classList.add('expanded');const chev=card.querySelector('.kpi-chevron');if(chev)chev.style.transform='rotate(180deg)';}
-    }
-  });
-  // Animate only the value elements — subtle fade+drift
+  restoreOpenCards(open);
   document.querySelectorAll('.kpi-value').forEach(el=>{
     el.classList.remove('animating');
     void el.offsetWidth;
