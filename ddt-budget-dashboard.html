@@ -1264,7 +1264,7 @@ function buildOverview(){
   const tdM=tdG>0?tdN/tdG:0;
 
   const isTd=kpiView==='td';
-  const pill=`<button class="kpi-view-pill" onclick="event.stopPropagation();toggleKpiView()">${isTd?'To date':'Full year'}</button>`;
+  const viewPill=`<button class="kpi-view-pill" onclick="event.stopPropagation();toggleKpiView()">${isTd?'To date':'Full year'}</button>`;
 
   // Helper — pick value based on view
   const val=(fy,td)=>isTd?td:fy;
@@ -1281,7 +1281,7 @@ function buildOverview(){
     return`<div class="kpi-card ${cls} kpi-expandable" onclick="toggleAllKpis()">
       <div class="kpi-card-header"><div class="kpi-label">${label}</div>${chevron}</div>
       <div class="kpi-value ${cls}">${fmtFn(v)}</div>
-      ${pill}
+      ${viewPill}
       <div class="kpi-exp-body" id="kpi-exp-${id}">${rowsHtml}</div>
     </div>`;
   };
@@ -1291,7 +1291,7 @@ function buildOverview(){
   const feesCard=`<div class="kpi-card${feesExpRows.length>0?' kpi-expandable':''}" ${feesExpRows.length>0?'onclick="toggleAllKpis()"':''}>
     ${feesExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>`:`<div class="kpi-label">Total gross fees</div>`}
     <div class="kpi-value">${D(val(tG,tdG))}</div>
-    ${pill}
+    ${viewPill}
     <div class="kpi-sub" style="margin-top:4px">${showLabel}</div>
     ${feesExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-fees">${feesExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>`:''}
   </div>`;
@@ -1321,14 +1321,14 @@ function buildOverview(){
   const netCard=`<div class="kpi-card ${kc}${netExpRows.length>0?' kpi-expandable':''}" ${netExpRows.length>0?'onclick="toggleAllKpis()"':''}>
     ${netExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Net profit</div>${chevron}</div>`:`<div class="kpi-label">Net profit</div>`}
     <div class="kpi-value ${kc}">${D(netVal)}</div>
-    ${pill}
+    ${viewPill}
     ${netExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-net">${netExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>`:''}
   </div>`;
 
   const marginCard=`<div class="kpi-card ${kc}${marginExpRows.length>0?' kpi-expandable':''}" ${marginExpRows.length>0?'onclick="toggleAllKpis()"':''}>
     ${marginExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Blended margin</div>${chevron}</div>`:`<div class="kpi-label">Blended margin</div>`}
     <div class="kpi-value ${kc}">${P(marginVal)}</div>
-    ${pill}
+    ${viewPill}
     <div class="kpi-sub ${kc}" style="margin-top:4px">Target: ${P(ovTarget)}</div>
     ${marginExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>`:''}
   </div>`;
