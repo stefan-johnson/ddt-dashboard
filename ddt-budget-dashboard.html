@@ -1397,18 +1397,42 @@ function buildOverview(){
     ${marginExpRowsHtml?`<div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRowsHtml}${toggleLink}</div>`:toggleLink}
   </div>`;
 
+  // Blended above target — top line shows —, expand shows per-region gaps
+  const blendedOnTarget=bm>=ovTarget;
+
+  const regionGaps=REGION_ORDER.filter(r=>selectedRegions.has(r)).map(r=>{
+    const rRows=rows.filter(x=>x.inRegion&&x.inSel&&x.region===r);
+    if(!rRows.length)return null;
+    const rAr=rRows.reduce((s,x)=>s+x.c.addRev,0);
+    const rCs=rRows.reduce((s,x)=>s+x.c.costSav,0);
+    return{r,rAr,rCs};
+  }).filter(Boolean);
+
+  const arRegionRows=regionGaps.map(({r,rAr})=>
+    `<div class="kpi-exp-row"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${rAr>0?D(rAr):'—'}</span></div>`
+  ).join('');
+  const csRegionRows=regionGaps.map(({r,rCs})=>
+    `<div class="kpi-exp-row"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${rCs>0?D(rCs):'—'}</span></div>`
+  ).join('');
+
   // Row 2
   document.getElementById('ov-kpis-row2').innerHTML=
     netCard+marginCard+
-    `<div class="kpi-card ${tAr>0?'amber':'green'} kpi-expandable" onclick="toggleAllKpis()">
+    `<div class="kpi-card ${blendedOnTarget?'green':'amber'} kpi-expandable" onclick="toggleAllKpis()">
       <div class="kpi-card-header"><div class="kpi-label">Addl. revenue needed</div>${chevron}</div>
-      <div class="kpi-value ${tAr>0?'amber':'green'}">${tAr>0?D(tAr):'—'}</div>
-      <div class="kpi-exp-body" id="kpi-exp-ar"><div class="kpi-exp-disclaimer">The additional gross revenue required to hit the target margin, after accounting for commission and allocation erosion on that new income.</div></div>
+      <div class="kpi-value-wrap"><div class="kpi-value ${blendedOnTarget?'green':'amber'}">${blendedOnTarget?'—':D(tAr)}</div></div>
+      <div class="kpi-exp-body" id="kpi-exp-ar">
+        ${arRegionRows}
+        <div class="kpi-exp-disclaimer" style="margin-top:8px">Additional gross revenue required per region to hit the target margin, after accounting for commission and allocation erosion.</div>
+      </div>
     </div>`+
-    `<div class="kpi-card ${tCs>0?'amber':'green'} kpi-expandable" onclick="toggleAllKpis()">
+    `<div class="kpi-card ${blendedOnTarget?'green':'amber'} kpi-expandable" onclick="toggleAllKpis()">
       <div class="kpi-card-header"><div class="kpi-label">Cost saving needed</div>${chevron}</div>
-      <div class="kpi-value ${tCs>0?'amber':'green'}">${tCs>0?D(tCs):'—'}</div>
-      <div class="kpi-exp-body" id="kpi-exp-cs"><div class="kpi-exp-disclaimer">The reduction in total tour costs required to hit the target margin, holding gross fees constant.</div></div>
+      <div class="kpi-value-wrap"><div class="kpi-value ${blendedOnTarget?'green':'amber'}">${blendedOnTarget?'—':D(tCs)}</div></div>
+      <div class="kpi-exp-body" id="kpi-exp-cs">
+        ${csRegionRows}
+        <div class="kpi-exp-disclaimer" style="margin-top:8px">Tour cost reduction required per region to hit the target margin, holding gross fees constant.</div>
+      </div>
     </div>`;
   // Leg rows — table (desktop) — only show filtered legs
   const visibleRows=rows.filter(r=>r.inRegion&&r.inSel);
