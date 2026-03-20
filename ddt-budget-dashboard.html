@@ -716,6 +716,12 @@ async function loadData(){
     const vr=await fetchAll('Budget Versions',BV_FIELDS);
     allVersions=vr.map(r=>({id:r.id,...r.fields}));
 
+    setLoad(80,'Loading show schedule');
+    try{
+      const evr=await fetchAll('Tour Events',['Date','Tour Leg','Status']);
+      tourEvents=evr;
+    }catch(e){ tourEvents=[]; }
+
     setLoad(100,'Ready');
     await new Promise(r=>setTimeout(r,200));
     document.getElementById('loading').classList.add('hidden');
@@ -806,15 +812,14 @@ async function loadSalaries(){
   document.getElementById('ov-salary').innerHTML=
     `<div style="color:var(--g400);font-size:12px;padding:8px 0;">Loading...</div>`;
   try{
-    const [recs, events]=await Promise.all([
+    const [recs]=await Promise.all([
       fetchAll('Off Road Rates',[
         'Name','Person','Role Display','Is Current?','Weekly Rate (Local)','Currency',
         'Weekly Rate USD','Annual Cost USD','Estimated Paid YTD (USD)',
         'Burn Rate','Rate From','Rate To','CoA'
-      ]),
-      fetchAll('Tour Events',['Date','Tour Leg','Status'])
+      ])
     ]);
-    tourEvents=events;
+    const events=tourEvents;
 
     const today=new Date(); today.setHours(0,0,0,0);
     const jan1=new Date(today.getFullYear(),0,1);
