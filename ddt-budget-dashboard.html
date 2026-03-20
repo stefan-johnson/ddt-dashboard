@@ -112,19 +112,20 @@ nav{display:flex;gap:2px;}
 .kpi-toggle-link span{color:var(--g600);text-decoration:underline;text-underline-offset:2px;}
 .kpi-toggle-link:hover span{color:var(--black);}
 .kpi-card{background:var(--g50);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);display:flex;flex-direction:column;}
-.kpi-card.flipping{animation:kpiFlip 0.4s cubic-bezier(0.4,0,0.2,1);}
-@keyframes kpiFlip{0%{transform:rotateY(0deg) scale(1);}40%{transform:rotateY(90deg) scale(0.96);}60%{transform:rotateY(-90deg) scale(0.96);}100%{transform:rotateY(0deg) scale(1);}}
 .kpi-card.green{background:var(--green50);}
 .kpi-card.amber{background:var(--amber50);}
 .kpi-card.red{background:var(--red50);}
 .kpi-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;color:var(--g400);letter-spacing:.08em;margin-bottom:6px;}
-.kpi-value{font-family:var(--fd);font-size:16px;font-weight:bold;color:var(--black);line-height:1.1;min-height:22px;}
+.kpi-value-wrap{min-height:50px;}
+.kpi-value{font-family:var(--fd);font-size:16px;font-weight:bold;color:var(--black);line-height:1.1;}
+@keyframes kpiFadeUp{0%{opacity:0;transform:translateY(3px);}100%{opacity:1;transform:translateY(0);}}
+.kpi-value.animating{animation:kpiFadeUp 0.18s ease-out;}
 .kpi-value.green{color:var(--green800);}
 .kpi-value.amber{color:var(--amber800);}
 .kpi-value.red{color:var(--red800);}
-.kpi-sub{font-size:10px;color:var(--g400);margin-top:3px;min-height:16px;}
+.kpi-sub{font-size:10px;color:var(--g400);margin-top:3px;min-height:14px;}
 .kpi-sub.green{color:var(--green600);}
-.kpi-exp-disclaimer{font-family:var(--fu);font-size:9px;color:var(--g400);margin-top:8px;line-height:1.5;padding-top:8px;border-top:0.5px solid var(--g100);}
+.kpi-exp-disclaimer{font-family:var(--fu);font-size:9px;color:var(--g400);line-height:1.5;}
 
 /* SLIDER - drill-down inline only */
 .slider-row{display:flex;align-items:center;gap:12px;padding:10px var(--cp);border-bottom:0.5px solid var(--g100);}
@@ -253,9 +254,8 @@ select:focus{border-color:var(--g400);}
 .kpi-card-header{display:flex;justify-content:space-between;align-items:flex-start;}
 .kpi-chevron{color:var(--g400);transition:transform .2s;flex-shrink:0;margin-top:1px;}
 .kpi-expandable.expanded .kpi-chevron{transform:rotate(180deg);}
-.kpi-exp-body{display:none;margin-top:10px;}
+.kpi-exp-body{display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--g100);}
 .kpi-exp-body.open{display:block;}
-.kpi-exp-body::before{content:'';display:block;height:0.5px;background:var(--g100);margin-bottom:10px;}
 .kpi-exp-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;}
 .kpi-exp-row3{display:grid;grid-template-columns:1fr auto auto;gap:0 12px;align-items:baseline;padding:3px 0;}
 .kpi-exp-label{font-family:var(--fu);font-size:9px;color:var(--g400);}
@@ -1333,17 +1333,18 @@ function buildOverview(){
     const rowsHtml=expRows.map(([l,r])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${r}</span></div>`).join('');
     return`<div class="kpi-card ${cls} kpi-expandable" onclick="toggleAllKpis()">
       <div class="kpi-card-header"><div class="kpi-label">${label}</div>${chevron}</div>
-      <div class="kpi-value ${cls}">${fmtFn(v)}</div>
+      <div class="kpi-value-wrap"><div class="kpi-value ${cls}">${fmtFn(v)}</div></div>
       <div class="kpi-exp-body" id="kpi-exp-${id}">${rowsHtml}${toggleLink}</div>
     </div>`;
   };
 
-  // Gross fees card — 3-col region rows
   const hasRegionFees=regionFeesV.length>0;
   const feesCard=`<div class="kpi-card${hasRegionFees?' kpi-expandable':''}" ${hasRegionFees?'onclick="toggleAllKpis()"':''}>
     ${hasRegionFees?`<div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>`:`<div class="kpi-label">Total gross fees</div>`}
-    <div class="kpi-value">${D(val(tG,tdG))}</div>
-    <div class="kpi-sub" style="margin-top:6px;color:var(--g400)">${currentShowLabel} · ${viewLabel}</div>
+    <div class="kpi-value-wrap">
+      <div class="kpi-value">${D(val(tG,tdG))}</div>
+      <div class="kpi-sub">${currentShowLabel} · ${viewLabel}</div>
+    </div>
     ${hasRegionFees?`<div class="kpi-exp-body" id="kpi-exp-fees">${regionFeesV}${toggleLink}</div>`:''}
   </div>`;
 
@@ -1365,14 +1366,16 @@ function buildOverview(){
 
   const netCard=`<div class="kpi-card ${kc}${netExpRowsHtml?' kpi-expandable':''}" ${netExpRowsHtml?'onclick="toggleAllKpis()"':''}>
     ${netExpRowsHtml?`<div class="kpi-card-header"><div class="kpi-label">Net profit</div>${chevron}</div>`:`<div class="kpi-label">Net profit</div>`}
-    <div class="kpi-value ${kc}">${D(netVal)}</div>
+    <div class="kpi-value-wrap"><div class="kpi-value ${kc}">${D(netVal)}</div></div>
     ${netExpRowsHtml?`<div class="kpi-exp-body" id="kpi-exp-net">${netExpRowsHtml}${toggleLink}</div>`:toggleLink}
   </div>`;
 
   const marginCard=`<div class="kpi-card ${kc}${marginExpRowsHtml?' kpi-expandable':''}" ${marginExpRowsHtml?'onclick="toggleAllKpis()"':''}>
     ${marginExpRowsHtml?`<div class="kpi-card-header"><div class="kpi-label">Blended margin</div>${chevron}</div>`:`<div class="kpi-label">Blended margin</div>`}
-    <div class="kpi-value ${kc}">${P(marginVal)}</div>
-    <div class="kpi-sub ${kc}" style="margin-top:4px">Target: ${P(ovTarget)}</div>
+    <div class="kpi-value-wrap">
+      <div class="kpi-value ${kc}">${P(marginVal)}</div>
+      <div class="kpi-sub ${kc}">Target: ${P(ovTarget)}</div>
+    </div>
     ${marginExpRowsHtml?`<div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRowsHtml}${toggleLink}</div>`:toggleLink}
   </div>`;
 
@@ -1501,12 +1504,12 @@ function toggleKpiView(){
       if(card){card.classList.add('expanded');const chev=card.querySelector('.kpi-chevron');if(chev)chev.style.transform='rotate(180deg)';}
     }
   });
-  // Trigger flip animation on all kpi cards
-  document.querySelectorAll('.kpi-card').forEach(card=>{
-    card.classList.remove('flipping');
-    void card.offsetWidth; // reflow
-    card.classList.add('flipping');
-    card.addEventListener('animationend',()=>card.classList.remove('flipping'),{once:true});
+  // Animate only the value elements — subtle fade+drift
+  document.querySelectorAll('.kpi-value').forEach(el=>{
+    el.classList.remove('animating');
+    void el.offsetWidth;
+    el.classList.add('animating');
+    el.addEventListener('animationend',()=>el.classList.remove('animating'),{once:true});
   });
 }
 
