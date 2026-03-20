@@ -560,7 +560,7 @@ select:focus{border-color:var(--g400);}
 
 <script>
 let API_KEY='', BASE_ID='';
-let allVersions=[], tourLegs=[];
+let allVersions=[], tourLegs=[], tourEvents=[];
 let ovTarget=0.30, ddTarget=0.30;
 let selLegId=null, selVersion=null;
 let selectedLegIds=new Set(); // IDs of legs included in overview KPI totals
@@ -808,8 +808,9 @@ async function loadSalaries(){
         'Weekly Rate USD','Annual Cost USD','Estimated Paid YTD (USD)',
         'Burn Rate','Rate From','Rate To','CoA'
       ]),
-      fetchAll('Tour Events',['Date','Tour Leg'])
+      fetchAll('Tour Events',['Date','Tour Leg','Status'])
     ]);
+    tourEvents=events;
 
     const today=new Date(); today.setHours(0,0,0,0);
     const jan1=new Date(today.getFullYear(),0,1);
@@ -1180,10 +1181,18 @@ function updateFilterLabel(){
 
 function buildOverview(){
   // Overview always reads live data from Tour Legs
-  let tG=0,tCm=0,tMgmt=0,tAgent=0,tAl=0,tMkt=0,tSal=0,tOps=0;
+  let tG=0,tCm=0,tMgmt=0,tAgent=0,tAgentNSA=0,tAgentROW=0,tAl=0,tMkt=0,tSal=0,tOps=0;
   let tCo=0,tFl=0,tHt=0,tWg=0,tPr=0,tGt=0,tMd=0,tMs=0;
   let tN=0,tWht=0,tAr=0,tCs=0;
   let selCount=0;
+
+  // Show count — Tour Events with status offer/confirmed linked to visible legs
+  const visibleLegIds=new Set(tourLegs.filter(l=>selectedLegIds.has(l.id)&&(selectedRegions.size===0||selectedRegions.has(l.region))).map(l=>l.id));
+  const showCount=tourEvents.filter(e=>{
+    const status=(e.fields['Status']||'').toLowerCase();
+    if(status!=='offer'&&status!=='confirmed')return false;
+    return (e.fields['Tour Leg']||[]).some(id=>visibleLegIds.has(id));
+  }).length;
 
   const rows=tourLegs.map(leg=>{
     const c=compute(leg,ovTarget);
@@ -1192,6 +1201,8 @@ function buildOverview(){
     const inSel=selectedLegIds.has(leg.id);
     if(inRegion&&inSel){
       tG+=c.gross; tCm+=c.comm; tMgmt+=c.mgmtComm; tAgent+=c.agentComm;
+      if(region==='NA'||region==='SA') tAgentNSA+=c.agentComm;
+      else tAgentROW+=c.agentComm;
       tAl+=c.alloc; tMkt+=c.mktAlloc; tSal+=c.salAlloc; tOps+=c.opsAlloc;
       tCo+=c.costs; tFl+=c.fl; tHt+=c.ht; tWg+=c.wg; tPr+=c.pr;
       tGt+=c.gt; tMd+=c.md; tMs+=c.ms;
@@ -1203,7 +1214,7 @@ function buildOverview(){
   const bm=tG>0?tN/tG:0;
   const kc=bm>=ovTarget?'green':bm>=ovTarget-0.05?'amber':'red';
   const totalLegs=tourLegs.length;
-  const legLabel=selCount===totalLegs?`${totalLegs} leg${totalLegs!==1?'s':''}`:`${selCount} of ${totalLegs} legs`;
+  const showLabel=`${showCount} show${showCount!==1?'s':''}`;
 
   // Per-region gross fee breakdown for the fees card
   const regionFees=REGION_ORDER.filter(r=>selectedRegions.has(r)).map(r=>{
@@ -1232,15 +1243,20 @@ function buildOverview(){
     ? `<div class="kpi-card kpi-expandable" onclick="toggleAllKpis()">
         <div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>
         <div class="kpi-value">${D(tG)}</div>
-        <div class="kpi-sub">${legLabel}</div>
+        <div class="kpi-sub">${showLabel}</div>
         <div class="kpi-exp-body" id="kpi-exp-fees">${feesExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>
       </div>`
-    : `<div class="kpi-card"><div class="kpi-label">Total gross fees</div><div class="kpi-value">${D(tG)}</div><div class="kpi-sub">${legLabel}</div></div>`;
+    : `<div class="kpi-card"><div class="kpi-label">Total gross fees</div><div class="kpi-value">${D(tG)}</div><div class="kpi-sub">${showLabel}</div></div>`;
+
+  // Commission agent rows — only show split if both have values
+  const agentRows=tAgentNSA>0&&tAgentROW>0
+    ?[['Agent - TEAM (NSA)',D(tAgentNSA)],['Agent - TEAM (ROW)',D(tAgentROW)]]
+    :[['Agent - TEAM',D(tAgent)]];
 
   // Row 1
   document.getElementById('ov-kpis-row1').innerHTML=
     feesCard+
-    expCard('comm','',   'Commission',   D(tCm), '', [['Management - IFW',D(tMgmt)],['Agent - TEAM',D(tAgent)]])+
+    expCard('comm','',   'Commission',   D(tCm), '', [['Management - IFW',D(tMgmt)],...agentRows])+
     expCard('alloc','',  'Allocations',  D(tAl), '', [['Marketing',D(tMkt)],['Salary',D(tSal)],['Ops',D(tOps)]])+
     expCard('costs','',  'Tour costs',   D(tCo), '', [['Flights',D(tFl)],['Hotels',D(tHt)],['Wages',D(tWg)],['Production',D(tPr)],['Ground transport',D(tGt)],['Media',D(tMd)],['Misc',D(tMs)]]);
 
