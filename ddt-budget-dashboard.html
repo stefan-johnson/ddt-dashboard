@@ -1397,41 +1397,66 @@ function buildOverview(){
     ${marginExpRowsHtml?`<div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRowsHtml}${toggleLink}</div>`:toggleLink}
   </div>`;
 
-  // Blended above target — top line shows —, expand shows per-region gaps
-  const blendedOnTarget=bm>=ovTarget;
-
   const regionGaps=REGION_ORDER.filter(r=>selectedRegions.has(r)).map(r=>{
     const rRows=rows.filter(x=>x.inRegion&&x.inSel&&x.region===r);
     if(!rRows.length)return null;
-    const rAr=rRows.reduce((s,x)=>s+x.c.addRev,0);
-    const rCs=rRows.reduce((s,x)=>s+x.c.costSav,0);
-    return{r,rAr,rCs};
+    const rG=rRows.reduce((s,x)=>s+x.c.gross,0);
+    const rN=rRows.reduce((s,x)=>s+x.c.net,0);
+    const rM=rG>0?rN/rG:0;
+    const rOnTarget=rM>=ovTarget;
+    const cp=rRows[0]?.c?.cp||0;
+    const ap=rRows[0]?.c?.ap||0;
+    const denom=1-cp-ap-ovTarget;
+    const rGap=rG*ovTarget-rN; // negative = surplus
+    const rAr=denom!==0?rGap/denom:0;
+    const rCs=rGap;
+    return{r,rAr,rCs,rOnTarget};
   }).filter(Boolean);
 
+  // Top-level blended gap
+  const blendedGap=tG*ovTarget-tN;
+  const blendedDenom=1-(rows[0]?.c?.cp||0.175)-(rows[0]?.c?.ap||0.142)-ovTarget;
+  const blendedAr=blendedDenom!==0?blendedGap/blendedDenom:0;
+  const blendedCs=blendedGap;
+  const blendedOnTarget=bm>=ovTarget;
+
+  const fmtGap=(v)=>v<0
+    ?`<span style="color:var(--green800)">${D(Math.abs(v))} surplus</span>`
+    :`<span>${D(v)}</span>`;
+
   const arRegionRows=regionGaps.map(({r,rAr})=>
-    `<div class="kpi-exp-row"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${rAr>0?D(rAr):'—'}</span></div>`
+    `<div class="kpi-exp-row"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${fmtGap(rAr)}</span></div>`
   ).join('');
   const csRegionRows=regionGaps.map(({r,rCs})=>
-    `<div class="kpi-exp-row"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${rCs>0?D(rCs):'—'}</span></div>`
+    `<div class="kpi-exp-row"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${fmtGap(rCs)}</span></div>`
   ).join('');
+
+  const arTopCls=blendedOnTarget?'green':'amber';
+  const csTopCls=blendedOnTarget?'green':'amber';
+  const arTopVal=blendedOnTarget
+    ?`<span style="color:var(--green800)">${D(Math.abs(blendedAr))} surplus</span>`
+    :D(blendedAr);
+  const csTopVal=blendedOnTarget
+    ?`<span style="color:var(--green800)">${D(Math.abs(blendedCs))} surplus</span>`
+    :D(blendedCs);
 
   // Row 2
   document.getElementById('ov-kpis-row2').innerHTML=
     netCard+marginCard+
-    `<div class="kpi-card ${blendedOnTarget?'green':'amber'} kpi-expandable" onclick="toggleAllKpis()">
+    `<div class="kpi-card ${arTopCls} kpi-expandable" onclick="toggleAllKpis()">
       <div class="kpi-card-header"><div class="kpi-label">Addl. revenue needed</div>${chevron}</div>
-      <div class="kpi-value-wrap"><div class="kpi-value ${blendedOnTarget?'green':'amber'}">${blendedOnTarget?'—':D(tAr)}</div></div>
+      <div class="kpi-value-wrap"><div class="kpi-value ${arTopCls}">${arTopVal}</div></div>
       <div class="kpi-exp-body" id="kpi-exp-ar">
         ${arRegionRows}
-        <div class="kpi-exp-disclaimer" style="margin-top:8px">Additional gross revenue required per region to hit the target margin, after accounting for commission and allocation erosion.</div>
+        <div class="kpi-exp-disclaimer" style="margin-top:8px">Additional gross revenue required per region to hit the target margin. Negative figures show surplus above target.</div>
       </div>
     </div>`+
-    `<div class="kpi-card ${blendedOnTarget?'green':'amber'} kpi-expandable" onclick="toggleAllKpis()">
+    `<div class="kpi-card ${csTopCls} kpi-expandable" onclick="toggleAllKpis()">
       <div class="kpi-card-header"><div class="kpi-label">Cost saving needed</div>${chevron}</div>
-      <div class="kpi-value-wrap"><div class="kpi-value ${blendedOnTarget?'green':'amber'}">${blendedOnTarget?'—':D(tCs)}</div></div>
+      <div class="kpi-value-wrap"><div class="kpi-value ${csTopCls}">${csTopVal}</div></div>
       <div class="kpi-exp-body" id="kpi-exp-cs">
         ${csRegionRows}
-        <div class="kpi-exp-disclaimer" style="margin-top:8px">Tour cost reduction required per region to hit the target margin, holding gross fees constant.</div>
+        <div class="kpi-exp-disclaimer" style="margin-top:8px">Tour cost reduction required per region to hit the target margin. Negative figures show surplus above target.</div>
       </div>
     </div>`;
   // Leg rows — table (desktop) — only show filtered legs
