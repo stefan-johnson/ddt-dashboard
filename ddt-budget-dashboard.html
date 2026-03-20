@@ -1422,7 +1422,7 @@ function buildOverview(){
 
   const fmtGap=(v)=>v<0
     ?`<span style="color:var(--green800)">${D(Math.abs(v))} surplus</span>`
-    :`<span>${D(v)}</span>`;
+    :`<span style="color:var(--amber800)">${D(v)} deficit</span>`;
 
   const arRegionRows=regionGaps.map(({r,rAr})=>
     `<div class="kpi-exp-row"><span class="kpi-exp-label">${r}</span><span class="kpi-exp-val">${fmtGap(rAr)}</span></div>`
@@ -1433,30 +1433,26 @@ function buildOverview(){
 
   const arTopCls=blendedOnTarget?'green':'amber';
   const csTopCls=blendedOnTarget?'green':'amber';
-  const arTopVal=blendedOnTarget
-    ?`<span style="color:var(--green800)">${D(Math.abs(blendedAr))} surplus</span>`
-    :D(blendedAr);
-  const csTopVal=blendedOnTarget
-    ?`<span style="color:var(--green800)">${D(Math.abs(blendedCs))} surplus</span>`
-    :D(blendedCs);
+  const arTopVal=blendedOnTarget?'—':D(blendedAr);
+  const csTopVal=blendedOnTarget?'—':D(blendedCs);
 
   // Row 2
   document.getElementById('ov-kpis-row2').innerHTML=
     netCard+marginCard+
     `<div class="kpi-card ${arTopCls} kpi-expandable" onclick="toggleAllKpis()">
-      <div class="kpi-card-header"><div class="kpi-label">Addl. revenue needed</div>${chevron}</div>
+      <div class="kpi-card-header"><div class="kpi-label">Addl. revenue to hit target</div>${chevron}</div>
       <div class="kpi-value-wrap"><div class="kpi-value ${arTopCls}">${arTopVal}</div></div>
       <div class="kpi-exp-body" id="kpi-exp-ar">
         ${arRegionRows}
-        <div class="kpi-exp-disclaimer" style="margin-top:8px">Additional gross revenue required per region to hit the target margin. Negative figures show surplus above target.</div>
+        <div class="kpi-exp-disclaimer" style="margin-top:8px">Additional gross revenue required per region to hit the target margin. Surplus shown in green, deficit in amber.</div>
       </div>
     </div>`+
     `<div class="kpi-card ${csTopCls} kpi-expandable" onclick="toggleAllKpis()">
-      <div class="kpi-card-header"><div class="kpi-label">Cost saving needed</div>${chevron}</div>
+      <div class="kpi-card-header"><div class="kpi-label">Cost saving to hit target</div>${chevron}</div>
       <div class="kpi-value-wrap"><div class="kpi-value ${csTopCls}">${csTopVal}</div></div>
       <div class="kpi-exp-body" id="kpi-exp-cs">
         ${csRegionRows}
-        <div class="kpi-exp-disclaimer" style="margin-top:8px">Tour cost reduction required per region to hit the target margin. Negative figures show surplus above target.</div>
+        <div class="kpi-exp-disclaimer" style="margin-top:8px">Tour cost reduction required per region to hit the target margin. Surplus shown in green, deficit in amber.</div>
       </div>
     </div>`;
   // Leg rows — table (desktop) — only show filtered legs
@@ -1721,8 +1717,8 @@ function buildDrill(){
     <div class="pm-cell"><div class="pm-label">Target margin</div><div class="pm-value">${P(ddTarget)}</div></div>
     <div class="pm-cell"><div class="pm-label">Target net profit</div><div class="pm-value">${D(c.tnet)}</div></div>
     <div class="pm-cell"><div class="pm-label">Gap to target</div><div class="pm-value ${at?'green':'red'}">${at?'—':D(c.gap)}</div><div class="pm-note">${at?'On target':'Positive = below target'}</div></div>
-    <div class="pm-cell"><div class="pm-label">Addl. revenue needed</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="pm-note">Accounts for commission & alloc on new revenue</div></div>
-    <div class="pm-cell"><div class="pm-label">Cost saving needed</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="pm-note">Holding revenue constant</div></div>
+    <div class="pm-cell"><div class="pm-label">Addl. revenue to hit target</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="pm-note">Accounts for commission & alloc on new revenue</div></div>
+    <div class="pm-cell"><div class="pm-label">Cost saving to hit target</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="pm-note">Holding revenue constant</div></div>
     <div class="pm-cell"><div class="pm-label">At target?</div><div class="pm-value ${at?'green':'red'}">${at?'Yes':'No'}</div></div>
   `;
 
