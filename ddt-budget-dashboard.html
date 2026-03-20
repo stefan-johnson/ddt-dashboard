@@ -1269,6 +1269,11 @@ function buildOverview(){
   // Helper — pick value based on view
   const val=(fy,td)=>isTd?td:fy;
 
+  // Agent rows — split NSA/ROW if both have values
+  const agentRows=tAgentNSA>0&&tAgentROW>0
+    ?[['Agent - TEAM (NSA)',D(tAgentNSA)],['Agent - TEAM (ROW)',D(tAgentROW)]]
+    :[['Agent - TEAM',D(tAgent)]];
+
   // Expandable card with pill
   const expCardV=(id,cls,label,fyVal,tdVal,expRows,fmtFn=D)=>{
     const v=val(fyVal,tdVal);
