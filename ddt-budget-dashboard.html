@@ -108,10 +108,11 @@ nav{display:flex;gap:2px;}
 /* KPI */
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--cg);margin-bottom:var(--cg);}
 .kpi-row-6{grid-template-columns:repeat(6,1fr);}
-.kpi-dual{display:flex;gap:16px;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--g100);}
-.kpi-dual-item{flex:1;}
-.kpi-dual-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:3px;}
-.kpi-dual-val{font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--black);}
+.kpi-view-pill{display:inline-block;margin-top:8px;padding:3px 10px;border-radius:999px;border:0.5px solid var(--g200);background:var(--white);font-family:var(--fu);font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:var(--g600);cursor:pointer;}
+.kpi-view-pill:hover{background:var(--g50);}
+.kpi-card.green .kpi-view-pill{border-color:var(--green200);background:var(--green50);}
+.kpi-card.amber .kpi-view-pill{border-color:var(--amber200);background:var(--amber50);}
+.kpi-card.red .kpi-view-pill{border-color:var(--red200);background:var(--red50);}
 .kpi-card{background:var(--g50);border:0.5px solid var(--g100);border-radius:var(--r);padding:var(--cp);display:flex;flex-direction:column;}
 .kpi-card.green{background:var(--green50);}
 .kpi-card.amber{background:var(--amber50);}
@@ -1262,25 +1263,20 @@ function buildOverview(){
   });
   const tdM=tdG>0?tdN/tdG:0;
 
-  // Dual-figure KPI helper
-  const dualSub=(tdVal,fyVal,fmt)=>
-    `<div class="kpi-dual">
-      <div class="kpi-dual-item"><div class="kpi-dual-label">To date</div><div class="kpi-dual-val">${fmt(tdVal)}</div></div>
-      <div class="kpi-dual-item"><div class="kpi-dual-label">Full year</div><div class="kpi-dual-val">${fmt(fyVal)}</div></div>
-    </div>`;
+  const isTd=kpiView==='td';
+  const pill=`<button class="kpi-view-pill" onclick="event.stopPropagation();toggleKpiView()">${isTd?'To date':'Full year'}</button>`;
 
-  // Commission agent rows — only show split if both have values
-  const agentRows=tAgentNSA>0&&tAgentROW>0
-    ?[['Agent - TEAM (NSA)',D(tAgentNSA)],['Agent - TEAM (ROW)',D(tAgentROW)]]
-    :[['Agent - TEAM',D(tAgent)]];
+  // Helper — pick value based on view
+  const val=(fy,td)=>isTd?td:fy;
 
-  // Row 1 — updated expCard to accept dual sub
-  const expCardDual=(id,cls,label,fyValue,tdValue,fyFmt,tdFmt,expRows)=>{
-    const rowsHtml=expRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('');
+  // Expandable card with pill
+  const expCardV=(id,cls,label,fyVal,tdVal,expRows,fmtFn=D)=>{
+    const v=val(fyVal,tdVal);
+    const rowsHtml=expRows.map(([l,r])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${r}</span></div>`).join('');
     return`<div class="kpi-card ${cls} kpi-expandable" onclick="toggleAllKpis()">
       <div class="kpi-card-header"><div class="kpi-label">${label}</div>${chevron}</div>
-      <div class="kpi-value ${cls}">${fyFmt(fyValue)}</div>
-      ${dualSub(tdValue,fyValue,tdFmt)}
+      <div class="kpi-value ${cls}">${fmtFn(v)}</div>
+      ${pill}
       <div class="kpi-exp-body" id="kpi-exp-${id}">${rowsHtml}</div>
     </div>`;
   };
@@ -1289,17 +1285,17 @@ function buildOverview(){
   const feesExpRows=regionFees.length>1?regionFees:[];
   const feesCard=`<div class="kpi-card${feesExpRows.length>0?' kpi-expandable':''}" ${feesExpRows.length>0?'onclick="toggleAllKpis()"':''}>
     ${feesExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Total gross fees</div>${chevron}</div>`:`<div class="kpi-label">Total gross fees</div>`}
-    <div class="kpi-value">${D(tG)}</div>
-    ${dualSub(tdG,tG,D)}
+    <div class="kpi-value">${D(val(tG,tdG))}</div>
+    ${pill}
     <div class="kpi-sub" style="margin-top:4px">${showLabel}</div>
     ${feesExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-fees">${feesExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>`:''}
   </div>`;
 
   document.getElementById('ov-kpis-row1').innerHTML=
     feesCard+
-    expCardDual('comm','','Commission',tCm,tdCm,D,D,[['Management - IFW',D(tMgmt)],...agentRows])+
-    expCardDual('alloc','','Allocations',tAl,tdAl,D,D,[['Marketing',D(tMkt)],['Salary',D(tSal)],['Ops',D(tOps)]])+
-    expCardDual('costs','','Tour costs',tCo,tdCo,D,D,[['Flights',D(tFl)],['Hotels',D(tHt)],['Wages',D(tWg)],['Production',D(tPr)],['Ground transport',D(tGt)],['Media',D(tMd)],['Misc',D(tMs)]]);
+    expCardV('comm','','Commission',tCm,tdCm,[['Management - IFW',D(tMgmt)],...agentRows])+
+    expCardV('alloc','','Allocations',tAl,tdAl,[['Marketing',D(tMkt)],['Salary',D(tSal)],['Ops',D(tOps)]])+
+    expCardV('costs','','Tour costs',tCo,tdCo,[['Flights',D(tFl)],['Hotels',D(tHt)],['Wages',D(tWg)],['Production',D(tPr)],['Ground transport',D(tGt)],['Media',D(tMd)],['Misc',D(tMs)]]);
 
   // Per-region net profit and margin breakdown
   const regionPnl=REGION_ORDER.filter(r=>selectedRegions.has(r)).map(r=>{
@@ -1314,17 +1310,20 @@ function buildOverview(){
   const netExpRows=regionPnl.length>1?regionPnl.map(({r,rN})=>[r,D(rN)]):[];
   const marginExpRows=regionPnl.length>1?regionPnl.map(({r,rM})=>[r,P(rM)]):[];
 
+  const netVal=val(tN,tdN);
+  const marginVal=val(bm,tdM);
+
   const netCard=`<div class="kpi-card ${kc}${netExpRows.length>0?' kpi-expandable':''}" ${netExpRows.length>0?'onclick="toggleAllKpis()"':''}>
     ${netExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Net profit</div>${chevron}</div>`:`<div class="kpi-label">Net profit</div>`}
-    <div class="kpi-value ${kc}">${D(tN)}</div>
-    ${dualSub(tdN,tN,D)}
+    <div class="kpi-value ${kc}">${D(netVal)}</div>
+    ${pill}
     ${netExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-net">${netExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>`:''}
   </div>`;
 
   const marginCard=`<div class="kpi-card ${kc}${marginExpRows.length>0?' kpi-expandable':''}" ${marginExpRows.length>0?'onclick="toggleAllKpis()"':''}>
     ${marginExpRows.length>0?`<div class="kpi-card-header"><div class="kpi-label">Blended margin</div>${chevron}</div>`:`<div class="kpi-label">Blended margin</div>`}
-    <div class="kpi-value ${kc}">${P(bm)}</div>
-    ${dualSub(tdM,bm,P)}
+    <div class="kpi-value ${kc}">${P(marginVal)}</div>
+    ${pill}
     <div class="kpi-sub ${kc}" style="margin-top:4px">Target: ${P(ovTarget)}</div>
     ${marginExpRows.length>0?`<div class="kpi-exp-body" id="kpi-exp-margin">${marginExpRows.map(([l,v])=>`<div class="kpi-exp-row"><span class="kpi-exp-label">${l}</span><span class="kpi-exp-val">${v}</span></div>`).join('')}</div>`:''}
   </div>`;
@@ -1429,6 +1428,12 @@ function toggleSection(id){
   const open=body.classList.toggle('open');
   if(chev)chev.classList.toggle('open',open);
   if(hdr)hdr.classList.toggle('open',open);
+}
+
+let kpiView='fy'; // 'fy' = full year, 'td' = to date
+function toggleKpiView(){
+  kpiView=kpiView==='fy'?'td':'fy';
+  buildOverview();
 }
 
 function toggleAllKpis(){
