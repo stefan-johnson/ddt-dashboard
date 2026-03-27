@@ -1861,15 +1861,10 @@ async function loadCatDetail(i,body){
   body.appendChild(loadDiv);
 
   try{
-    // Fetch all records for this leg
     const legName=selVersion?.name||selVersion?.['Name']||'';
     const legId=selLegId;
-
-    // Build fields list from fids values
-    const fieldsList=Object.values(cfg.fids).map(f=>f);
-    const recs=await fetchAll(cfg.table,Object.keys(cfg.fids).map(k=>({[k]:cfg.fids[k]})).reduce((a,o)=>Object.assign(a,o),{}));
-    // Re-fetch with field names array
-    const allRecs=await fetchAllById(cfg.tid,Object.values(cfg.fids));
+    const fieldIds=Object.values(cfg.fids);
+    const allRecs=await fetchAllById(cfg.tid,fieldIds);
 
     // Filter to this leg
     const legField=cfg.fids.leg;
