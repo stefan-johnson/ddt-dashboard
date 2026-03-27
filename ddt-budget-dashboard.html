@@ -1820,25 +1820,20 @@ function toggleCat(i){
 const CAT_KEYS=['Flights','Hotels','Wages','Production','Ground transport','Media','Misc'];
 const CAT_TABLES={
   'Flights':{table:'Flights',tid:'tbl8kQbMZ0wmB2lyY',
-    fields:['Party','Person','Date','Direction','Total Budget','Actual','Event'],
-    fids:{party:'fld4Ocs6JQBIBlyO3',person:'fldf2MWf9FD5Ydc38',date:'fldlxhzIAPRJbw0pd',
-          dir:'fldpKdmnuKJjbkytz',budget:'fldHqrTsXPOawvJOu',actual:'fldV13j6OGdb2TCrV',
-          leg:'fldHcvedUU1PCuHv4',event:'fldh9Q4jfdg21qcz6'}},
+    fids:{party:'Party',person:'Person',date:'Date',dir:'Direction',
+          budget:'Total Budget',actual:'Actual',leg:'Tour Leg',event:'Event'}},
   'Hotels':{table:'Hotels',tid:'tblDjIcqvsQ479wJe',
-    fields:['Party Group','Person','Check In','Check Out','Nights','Hotel Budget (USD)','Actual (USD)','City'],
-    fids:{party:'fldf3yXDDKiFd976N',person:'fldlspy43HBBywYbo',checkin:'fldQw9Am6hbrHDbAt',
-          checkout:'fldktkzYQLyk67MRh',nights:'fldhUqfJvQJMBeH0d',budget:'fld1lyvCbL1d3KUFq',
-          actual:'fldqLhRuGaNgGgrQb',city:'fldBgv5EFVJ8nfY5Q',leg:'fld2QvaaLmXJGhGKm'}},
+    fids:{party:'Party Group',person:'Person',checkin:'Check In',checkout:'Check Out',
+          nights:'Nights',budget:'Hotel Budget (USD)',actual:'Actual (USD)',
+          city:'City',leg:'Tour Leg'}},
   'Wages':{table:'Assignments',tid:'tblhsy9M9tHIABFDm',
-    fields:['Party','Person','Event Date','# Days','Day Rate (USD)','Wages Budget (USD)','Wages Actual (USD)'],
-    fids:{party:'fld0RzBCZTvaDW8vz',person:'fld3SWMq8G3jGq3qh',date:'fldpM1fGpK3hLkd5U',
-          days:'fldgH8yASc7uhou3k',rate:'flddT6Q6NwFKxWJJf',budget:'fldHQcdD7E4sePNUq',
-          actual:'fld8B81Vpp4abaH3K',leg:'fldj0nBwsXeQbvabP'}},
+    fids:{party:'Party',person:'Person',date:'Event Date',days:'# Days',
+          rate:'Day Rate (USD)',budget:'Wages Budget (USD)',actual:'Wages Actual (USD)',
+          leg:'Tour Leg'}},
   'Production':{table:'Production Costs',tid:'tblG65wr4nnaNOEj4',
-    fields:['Description','Department','Tour Event','Budget (USD)','Actual (USD)','Status','Vendor'],
-    fids:{desc:'fldR3RUFP86Tr65ZD',dept:'fldNUXqabiw0cOnSK',event:'fldojm8wo4kNYA9QY',
-          budget:'fld0NVRQBkcqzr6pW',actual:'fld2iMwxKT0ZzKbrL',status:'fldnm5anDQBknrGq7',
-          vendor:'fldIWhSKN8Ks6fInT',leg:'fldmMhrEkWIwlSXjg'}}
+    fids:{desc:'Description',dept:'Department',event:'Tour Event',
+          budget:'Budget (USD)',actual:'Actual (USD)',status:'Status',
+          vendor:'Vendor',leg:'Tour Leg'}}
 };
 
 async function loadCatDetail(i,body){
@@ -1862,8 +1857,8 @@ async function loadCatDetail(i,body){
 
   try{
     const legId=selLegId;
-    const fieldIds=Object.values(cfg.fids);
-    const allRecs=await fetchAllById(cfg.tid,fieldIds);
+    const fieldNames=Object.values(cfg.fids);
+    const allRecs=await fetchAllById(cfg.tid,fieldNames);
 
     // Filter to this leg — Tour Leg is a lookup returning leg names
     const legField=cfg.fids.leg;
@@ -1910,6 +1905,8 @@ async function loadCatDetail(i,body){
 }
 
 async function fetchAllById(tableId,fieldIds){
+  // REST API returns fields keyed by field NAME not ID when requested by name
+  // So we pass field names and access by name in the response
   const BASE='https://api.airtable.com/v0/';
   let recs=[],offset=null;
   do{
@@ -1919,26 +1916,14 @@ async function fetchAllById(tableId,fieldIds){
     const res=await fetch(`${BASE}${BASE_ID}/${tableId}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
     if(!res.ok)throw new Error(`${res.status}: ${await res.text()}`);
     const d=await res.json();
-    // Normalize: use cellValuesByFieldId if fields is missing
-    const normalized=d.records.map(r=>({
-      ...r,
-      fields:r.fields||r.cellValuesByFieldId||{}
-    }));
-    recs=recs.concat(normalized); offset=d.offset;
+    recs=recs.concat(d.records); offset=d.offset;
   }while(offset);
   return recs;
 }
 
-function getVal(r,fid){
-  const v=r.fields[fid]||r.cellValuesByFieldId?.[fid];
+function getVal(r,fname){
+  const v=r.fields?.[fname];
   if(v==null)return null;
-  // multipleLookupValues nested structure: {linkedRecordIds, valuesByLinkedRecordId}
-  if(v&&typeof v==='object'&&!Array.isArray(v)&&v.valuesByLinkedRecordId){
-    const vals=Object.values(v.valuesByLinkedRecordId).flat();
-    if(vals.length===0)return null;
-    if(typeof vals[0]==='object'&&vals[0].name)return vals.map(x=>x.name).join(', ');
-    return vals.join(', ');
-  }
   if(Array.isArray(v)){
     if(v.length===0)return null;
     if(typeof v[0]==='object'&&v[0].name)return v.map(x=>x.name).join(', ');
@@ -1948,35 +1933,31 @@ function getVal(r,fid){
   return v;
 }
 
-function getLegNames(r,fid){
-  const v=r.fields?.[fid];
+function getLegNames(r,fname){
+  const v=r.fields?.[fname];
   if(!v)return[];
-  // multipleLookupValues: {linkedRecordIds:[...], valuesByLinkedRecordId:{recXXX: [{id,name}]}}
-  if(v&&typeof v==='object'&&!Array.isArray(v)&&v.valuesByLinkedRecordId){
-    return Object.values(v.valuesByLinkedRecordId).flat().map(x=>
-      typeof x==='object'&&x.name?x.name:String(x)
-    );
-  }
   if(Array.isArray(v))return v.map(x=>typeof x==='object'&&x.name?x.name:String(x));
-  return[String(v)];
+  if(typeof v==='string')return[v];
+  if(v.valuesByLinkedRecordId)
+    return Object.values(v.valuesByLinkedRecordId).flat().map(x=>
+      typeof x==='object'&&x.name?x.name:String(x));
+  return[];
 }
 
 function renderPersonDetail(recs,cfg,catKey){
   // Group by party then person
   const parties=new Map();
   recs.forEach(r=>{
-    const personArr=r.fields[cfg.fids.person]||r.cellValuesByFieldId?.[cfg.fids.person];
+    const personArr=r.fields?.[cfg.fids.person];
     const person=Array.isArray(personArr)&&personArr.length>0
       ?(personArr[0].name||String(personArr[0])):'Unknown';
-    const partyVal=r.fields[cfg.fids.party]||r.cellValuesByFieldId?.[cfg.fids.party];
-    // Party is a lookup — extract name from nested structure
+    const partyVal=r.fields?.[cfg.fids.party];
+    // Party is a lookup — may be flat array of strings or objects
     const party=(()=>{
       if(!partyVal)return'Unassigned';
-      if(partyVal&&typeof partyVal==='object'&&!Array.isArray(partyVal)&&partyVal.valuesByLinkedRecordId){
-        const vals=Object.values(partyVal.valuesByLinkedRecordId).flat();
-        return vals.length>0?(typeof vals[0]==='object'?vals[0].name:vals[0]):'Unassigned';
-      }
-      if(Array.isArray(partyVal)&&partyVal.length>0)return typeof partyVal[0]==='object'?partyVal[0].name:partyVal[0];
+      if(Array.isArray(partyVal)&&partyVal.length>0)
+        return typeof partyVal[0]==='object'?partyVal[0].name:String(partyVal[0]);
+      if(typeof partyVal==='object'&&partyVal.name)return partyVal.name;
       return String(partyVal)||'Unassigned';
     })();
     const budget=Number(getVal(r,cfg.fids.budget)||0);
@@ -2051,10 +2032,10 @@ function renderProductionDetail(recs,cfg){
   const depts=new Map();
   recs.forEach(r=>{
     const dept=getVal(r,cfg.fids.dept)||'Uncategorised';
-    const eventArr=r.fields[cfg.fids.event]||r.cellValuesByFieldId?.[cfg.fids.event];
+    const eventArr=r.fields?.[cfg.fids.event];
     const event=Array.isArray(eventArr)&&eventArr.length>0
       ?(eventArr[0].name||'Show'):'Show';
-    const vendorArr=r.fields[cfg.fids.vendor]||r.cellValuesByFieldId?.[cfg.fids.vendor];
+    const vendorArr=r.fields?.[cfg.fids.vendor];
     const vendor=Array.isArray(vendorArr)&&vendorArr.length>0
       ?(vendorArr[0].name||''):(vendorArr?String(vendorArr):'');
     const desc=getVal(r,cfg.fids.desc)||'—';
