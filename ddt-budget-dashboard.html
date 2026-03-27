@@ -1861,17 +1861,16 @@ async function loadCatDetail(i,body){
   body.appendChild(loadDiv);
 
   try{
-    const legName=selVersion?.name||selVersion?.['Name']||'';
     const legId=selLegId;
     const fieldIds=Object.values(cfg.fids);
     const allRecs=await fetchAllById(cfg.tid,fieldIds);
 
-    // Filter to this leg
+    // Filter to this leg — Tour Leg is a lookup returning leg names
     const legField=cfg.fids.leg;
+    const legName=tourLegs.find(l=>l.id===legId)?.name||'';
     const legRecs=allRecs.filter(r=>{
-      const lv=r.fields[legField];
-      if(Array.isArray(lv))return lv.includes(legName)||lv.includes(legId);
-      return lv===legName||lv===legId;
+      const names=getLegNames(r,legField);
+      return names.includes(legName);
     });
 
     loadDiv.remove();
@@ -1919,24 +1918,53 @@ async function fetchAllById(tableId,fieldIds){
 }
 
 function getVal(r,fid){
-  const v=r.fields[fid];
+  const v=r.fields[fid]||r.cellValuesByFieldId?.[fid];
   if(v==null)return null;
+  // multipleLookupValues nested structure: {linkedRecordIds, valuesByLinkedRecordId}
+  if(v&&typeof v==='object'&&!Array.isArray(v)&&v.valuesByLinkedRecordId){
+    const vals=Object.values(v.valuesByLinkedRecordId).flat();
+    if(vals.length===0)return null;
+    if(typeof vals[0]==='object'&&vals[0].name)return vals.map(x=>x.name).join(', ');
+    return vals.join(', ');
+  }
   if(Array.isArray(v)){
     if(v.length===0)return null;
     if(typeof v[0]==='object'&&v[0].name)return v.map(x=>x.name).join(', ');
     return v.join(', ');
   }
+  if(typeof v==='object'&&v.name)return v.name;
   return v;
+}
+
+function getLegNames(r,fid){
+  // Returns array of leg names from a multipleLookupValues leg field
+  const v=r.fields[fid]||r.cellValuesByFieldId?.[fid];
+  if(!v)return[];
+  if(v&&typeof v==='object'&&!Array.isArray(v)&&v.valuesByLinkedRecordId){
+    return Object.values(v.valuesByLinkedRecordId).flat().map(x=>typeof x==='object'?x.name:x);
+  }
+  if(Array.isArray(v))return v.map(x=>typeof x==='object'?x.name:x);
+  return[];
 }
 
 function renderPersonDetail(recs,cfg,catKey){
   // Group by party then person
   const parties=new Map();
   recs.forEach(r=>{
-    const party=getVal(r,cfg.fids.party)||'Unassigned';
-    const personArr=r.fields[cfg.fids.person];
+    const personArr=r.fields[cfg.fids.person]||r.cellValuesByFieldId?.[cfg.fids.person];
     const person=Array.isArray(personArr)&&personArr.length>0
-      ?(personArr[0].name||personArr[0]):'Unknown';
+      ?(personArr[0].name||String(personArr[0])):'Unknown';
+    const partyVal=r.fields[cfg.fids.party]||r.cellValuesByFieldId?.[cfg.fids.party];
+    // Party is a lookup — extract name from nested structure
+    const party=(()=>{
+      if(!partyVal)return'Unassigned';
+      if(partyVal&&typeof partyVal==='object'&&!Array.isArray(partyVal)&&partyVal.valuesByLinkedRecordId){
+        const vals=Object.values(partyVal.valuesByLinkedRecordId).flat();
+        return vals.length>0?(typeof vals[0]==='object'?vals[0].name:vals[0]):'Unassigned';
+      }
+      if(Array.isArray(partyVal)&&partyVal.length>0)return typeof partyVal[0]==='object'?partyVal[0].name:partyVal[0];
+      return String(partyVal)||'Unassigned';
+    })();
     const budget=Number(getVal(r,cfg.fids.budget)||0);
     const actual=Number(getVal(r,cfg.fids.actual)||0);
     if(!parties.has(party))parties.set(party,new Map());
@@ -2009,11 +2037,13 @@ function renderProductionDetail(recs,cfg){
   const depts=new Map();
   recs.forEach(r=>{
     const dept=getVal(r,cfg.fids.dept)||'Uncategorised';
-    const eventArr=r.fields[cfg.fids.event];
+    const eventArr=r.fields[cfg.fids.event]||r.cellValuesByFieldId?.[cfg.fids.event];
     const event=Array.isArray(eventArr)&&eventArr.length>0
       ?(eventArr[0].name||'Show'):'Show';
+    const vendorArr=r.fields[cfg.fids.vendor]||r.cellValuesByFieldId?.[cfg.fids.vendor];
+    const vendor=Array.isArray(vendorArr)&&vendorArr.length>0
+      ?(vendorArr[0].name||''):(vendorArr?String(vendorArr):'');
     const desc=getVal(r,cfg.fids.desc)||'—';
-    const vendor=getVal(r,cfg.fids.vendor)||'';
     const budget=Number(getVal(r,cfg.fids.budget)||0);
     const actual=Number(getVal(r,cfg.fids.actual)||0);
     const status=getVal(r,cfg.fids.status)||'';
