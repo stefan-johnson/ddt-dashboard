@@ -1868,6 +1868,12 @@ async function loadCatDetail(i,body){
     // Filter to this leg — Tour Leg is a lookup returning leg names
     const legField=cfg.fids.leg;
     const legName=tourLegs.find(l=>l.id===legId)?.name||'';
+    console.log('[drill] legId:',legId,'legName:',legName,'total recs:',allRecs.length);
+    if(allRecs.length>0){
+      const sample=allRecs[0];
+      console.log('[drill] sample fields keys:',Object.keys(sample.fields||{}));
+      console.log('[drill] sample leg field value:',JSON.stringify(sample.fields?.[legField]));
+    }
     const legRecs=allRecs.filter(r=>{
       const names=getLegNames(r,legField);
       return names.includes(legName);
@@ -1911,8 +1917,14 @@ async function fetchAllById(tableId,fieldIds){
     fieldIds.forEach(f=>p.append('fields[]',f));
     if(offset)p.set('offset',offset);
     const res=await fetch(`${BASE}${BASE_ID}/${tableId}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
-    if(!res.ok)throw new Error(`${res.status}`);
-    const d=await res.json(); recs=recs.concat(d.records); offset=d.offset;
+    if(!res.ok)throw new Error(`${res.status}: ${await res.text()}`);
+    const d=await res.json();
+    // Normalize: use cellValuesByFieldId if fields is missing
+    const normalized=d.records.map(r=>({
+      ...r,
+      fields:r.fields||r.cellValuesByFieldId||{}
+    }));
+    recs=recs.concat(normalized); offset=d.offset;
   }while(offset);
   return recs;
 }
@@ -1937,14 +1949,16 @@ function getVal(r,fid){
 }
 
 function getLegNames(r,fid){
-  // Returns array of leg names from a multipleLookupValues leg field
-  const v=r.fields[fid]||r.cellValuesByFieldId?.[fid];
+  const v=r.fields?.[fid];
   if(!v)return[];
+  // multipleLookupValues: {linkedRecordIds:[...], valuesByLinkedRecordId:{recXXX: [{id,name}]}}
   if(v&&typeof v==='object'&&!Array.isArray(v)&&v.valuesByLinkedRecordId){
-    return Object.values(v.valuesByLinkedRecordId).flat().map(x=>typeof x==='object'?x.name:x);
+    return Object.values(v.valuesByLinkedRecordId).flat().map(x=>
+      typeof x==='object'&&x.name?x.name:String(x)
+    );
   }
-  if(Array.isArray(v))return v.map(x=>typeof x==='object'?x.name:x);
-  return[];
+  if(Array.isArray(v))return v.map(x=>typeof x==='object'&&x.name?x.name:String(x));
+  return[String(v)];
 }
 
 function renderPersonDetail(recs,cfg,catKey){
