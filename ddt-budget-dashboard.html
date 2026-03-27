@@ -200,6 +200,24 @@ select:focus{border-color:var(--g400);}
 .pm-value.red{color:var(--red800);}
 .pm-note{font-size:10px;color:var(--g400);margin-top:2px;}
 
+/* COST DRILL-DOWN */
+.drill-wrap{background:var(--white);}
+.drill-party-row{display:grid;grid-template-columns:1fr 110px 110px;align-items:center;padding:8px var(--cp) 8px 24px;border-bottom:0.5px solid var(--g100);cursor:pointer;background:var(--g50);}
+.drill-party-row:hover{background:var(--g100);}
+.drill-party-name{display:flex;align-items:center;gap:6px;font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
+.drill-persons{display:none;}
+.drill-persons.drill-open{display:block;}
+.drill-person-row{display:grid;grid-template-columns:1fr 110px 110px;align-items:center;padding:7px var(--cp) 7px 40px;border-bottom:0.5px solid var(--g100);cursor:pointer;}
+.drill-person-row:hover{background:var(--g50);}
+.drill-person-name{display:flex;align-items:center;gap:6px;font-family:var(--fu);font-size:9px;color:var(--g600);}
+.drill-records{display:none;}
+.drill-records.drill-open{display:block;}
+.drill-record-row{display:grid;grid-template-columns:1fr 110px 110px;align-items:center;padding:6px var(--cp) 6px 56px;border-bottom:0.5px solid var(--g50);}
+.drill-record-label{font-family:var(--fd);font-size:8.5px;color:var(--g400);}
+.drill-num{font-family:var(--fd);font-size:11px;text-align:right;color:var(--g600);}
+.drill-chev{font-size:7px;color:var(--g400);transition:transform .15s;display:inline-block;}
+.drill-chev.open{transform:rotate(90deg);}
+
 /* COST BREAKDOWN */
 .cost-cat-row{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;align-items:center;padding:9px var(--cp);background:var(--g50);border-bottom:0.5px solid var(--g100);cursor:pointer;}
 .cost-cat-row:hover{background:var(--g100);}
@@ -1769,6 +1787,11 @@ function buildDrill(){
         </div>
         <div class="cost-body" id="cat-${i}">
           ${cat.notes?`<div class="version-notes"><div class="version-notes-tag">Version notes</div>${cat.notes}</div>`:''}
+          <div style="display:grid;grid-template-columns:1fr 110px 110px;padding:5px var(--cp) 5px 24px;background:var(--g50);border-bottom:0.5px solid var(--g100)">
+            <span style="font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400)"></span>
+            <span style="font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);text-align:right">Budget</span>
+            <span style="font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);text-align:right">Actual</span>
+          </div>
         </div>`;
     }).join('')+
     `<div class="cost-totals">
@@ -1781,7 +1804,264 @@ function buildDrill(){
     ${c.wht>0?`<div style="padding:9px var(--cp);border-top:0.5px solid var(--g100);font-style:italic;color:var(--g600);font-size:11px;display:flex;justify-content:space-between"><span>WHT (ex-line)</span><span style="font-family:var(--fd)">-${D(c.wht)}</span></div>`:''}`;
 }
 
-function toggleCat(i){document.getElementById('cat-'+i).classList.toggle('open');document.getElementById('chev-'+i).classList.toggle('open');}
+function toggleCat(i){
+  const body=document.getElementById('cat-'+i);
+  const chev=document.getElementById('chev-'+i);
+  const isOpen=body.classList.contains('open');
+  if(isOpen){body.classList.remove('open');chev.classList.remove('open');return;}
+  body.classList.add('open');chev.classList.add('open');
+  // Lazy load drill detail if not yet loaded
+  if(!body.dataset.loaded){
+    body.dataset.loaded='1';
+    loadCatDetail(i,body);
+  }
+}
+
+const CAT_KEYS=['Flights','Hotels','Wages','Production','Ground transport','Media','Misc'];
+const CAT_TABLES={
+  'Flights':{table:'Flights',tid:'tbl8kQbMZ0wmB2lyY',
+    fields:['Party','Person','Date','Direction','Total Budget','Actual','Event'],
+    fids:{party:'fld4Ocs6JQBIBlyO3',person:'fldf2MWf9FD5Ydc38',date:'fldlxhzIAPRJbw0pd',
+          dir:'fldpKdmnuKJjbkytz',budget:'fldHqrTsXPOawvJOu',actual:'fldV13j6OGdb2TCrV',
+          leg:'fldHcvedUU1PCuHv4',event:'fldh9Q4jfdg21qcz6'}},
+  'Hotels':{table:'Hotels',tid:'tblDjIcqvsQ479wJe',
+    fields:['Party Group','Person','Check In','Check Out','Nights','Hotel Budget (USD)','Actual (USD)','City'],
+    fids:{party:'fldf3yXDDKiFd976N',person:'fldlspy43HBBywYbo',checkin:'fldQw9Am6hbrHDbAt',
+          checkout:'fldktkzYQLyk67MRh',nights:'fldhUqfJvQJMBeH0d',budget:'fld1lyvCbL1d3KUFq',
+          actual:'fldqLhRuGaNgGgrQb',city:'fldBgv5EFVJ8nfY5Q',leg:'fld2QvaaLmXJGhGKm'}},
+  'Wages':{table:'Assignments',tid:'tblhsy9M9tHIABFDm',
+    fields:['Party','Person','Event Date','# Days','Day Rate (USD)','Wages Budget (USD)','Wages Actual (USD)'],
+    fids:{party:'fld0RzBCZTvaDW8vz',person:'fld3SWMq8G3jGq3qh',date:'fldpM1fGpK3hLkd5U',
+          days:'fldgH8yASc7uhou3k',rate:'flddT6Q6NwFKxWJJf',budget:'fldHQcdD7E4sePNUq',
+          actual:'fld8B81Vpp4abaH3K',leg:'fldj0nBwsXeQbvabP'}},
+  'Production':{table:'Production Costs',tid:'tblG65wr4nnaNOEj4',
+    fields:['Description','Department','Tour Event','Budget (USD)','Actual (USD)','Status','Vendor'],
+    fids:{desc:'fldR3RUFP86Tr65ZD',dept:'fldNUXqabiw0cOnSK',event:'fldojm8wo4kNYA9QY',
+          budget:'fld0NVRQBkcqzr6pW',actual:'fld2iMwxKT0ZzKbrL',status:'fldnm5anDQBknrGq7',
+          vendor:'fldIWhSKN8Ks6fInT',leg:'fldmMhrEkWIwlSXjg'}}
+};
+
+async function loadCatDetail(i,body){
+  const catKey=CAT_KEYS[i];
+  if(!catKey){return;}
+  // Map category index to config key
+  const configKey=['Flights','Hotels','Wages','Production','Ground transport','Media','Misc'][i];
+  const cfg=CAT_TABLES[configKey];
+  if(!cfg){
+    // No detail view for this category yet
+    if(!body.querySelector('.version-notes'))
+      body.insertAdjacentHTML('beforeend','<div style="padding:10px 16px;font-size:11px;color:var(--g400)">Detailed breakdown coming soon.</div>');
+    return;
+  }
+
+  // Show loading
+  const loadDiv=document.createElement('div');
+  loadDiv.style.cssText='padding:10px 16px;font-size:11px;color:var(--g400)';
+  loadDiv.textContent='Loading…';
+  body.appendChild(loadDiv);
+
+  try{
+    // Fetch all records for this leg
+    const legName=selVersion?.name||selVersion?.['Name']||'';
+    const legId=selLegId;
+
+    // Build fields list from fids values
+    const fieldsList=Object.values(cfg.fids).map(f=>f);
+    const recs=await fetchAll(cfg.table,Object.keys(cfg.fids).map(k=>({[k]:cfg.fids[k]})).reduce((a,o)=>Object.assign(a,o),{}));
+    // Re-fetch with field names array
+    const allRecs=await fetchAllById(cfg.tid,Object.values(cfg.fids));
+
+    // Filter to this leg
+    const legField=cfg.fids.leg;
+    const legRecs=allRecs.filter(r=>{
+      const lv=r.fields[legField];
+      if(Array.isArray(lv))return lv.includes(legName)||lv.includes(legId);
+      return lv===legName||lv===legId;
+    });
+
+    loadDiv.remove();
+    if(!legRecs.length){
+      body.insertAdjacentHTML('beforeend','<div style="padding:10px 16px;font-size:11px;color:var(--g400)">No records found for this leg.</div>');
+      return;
+    }
+
+    const html=configKey==='Production'
+      ?renderProductionDetail(legRecs,cfg)
+      :renderPersonDetail(legRecs,cfg,configKey);
+
+    body.insertAdjacentHTML('beforeend',html);
+
+    // Wire up sub-toggles
+    body.querySelectorAll('[data-party-toggle]').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const target=body.querySelector('#'+el.dataset.partyToggle);
+        if(target){target.classList.toggle('drill-open');el.querySelector('.drill-chev').classList.toggle('open');}
+      });
+    });
+    body.querySelectorAll('[data-person-toggle]').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const target=body.querySelector('#'+el.dataset.personToggle);
+        if(target){target.classList.toggle('drill-open');el.querySelector('.drill-chev').classList.toggle('open');}
+      });
+    });
+  }catch(e){
+    loadDiv.textContent='Error loading detail: '+e.message;
+  }
+}
+
+async function fetchAllById(tableId,fieldIds){
+  const BASE='https://api.airtable.com/v0/';
+  let recs=[],offset=null;
+  do{
+    const p=new URLSearchParams();
+    fieldIds.forEach(f=>p.append('fields[]',f));
+    if(offset)p.set('offset',offset);
+    const res=await fetch(`${BASE}${BASE_ID}/${tableId}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
+    if(!res.ok)throw new Error(`${res.status}`);
+    const d=await res.json(); recs=recs.concat(d.records); offset=d.offset;
+  }while(offset);
+  return recs;
+}
+
+function getVal(r,fid){
+  const v=r.fields[fid];
+  if(v==null)return null;
+  if(Array.isArray(v)){
+    if(v.length===0)return null;
+    if(typeof v[0]==='object'&&v[0].name)return v.map(x=>x.name).join(', ');
+    return v.join(', ');
+  }
+  return v;
+}
+
+function renderPersonDetail(recs,cfg,catKey){
+  // Group by party then person
+  const parties=new Map();
+  recs.forEach(r=>{
+    const party=getVal(r,cfg.fids.party)||'Unassigned';
+    const personArr=r.fields[cfg.fids.person];
+    const person=Array.isArray(personArr)&&personArr.length>0
+      ?(personArr[0].name||personArr[0]):'Unknown';
+    const budget=Number(getVal(r,cfg.fids.budget)||0);
+    const actual=Number(getVal(r,cfg.fids.actual)||0);
+    if(!parties.has(party))parties.set(party,new Map());
+    const persons=parties.get(party);
+    if(!persons.has(person))persons.set(person,{budget:0,actual:0,records:[]});
+    const pd=persons.get(person);
+    pd.budget+=budget; pd.actual+=actual; pd.records.push(r);
+  });
+
+  let html='<div class="drill-wrap">';
+  let pi=0;
+  parties.forEach((persons,party)=>{
+    const partyBudget=[...persons.values()].reduce((s,p)=>s+p.budget,0);
+    const partyActual=[...persons.values()].reduce((s,p)=>s+p.actual,0);
+    const pid=`party-${Math.random().toString(36).slice(2)}`;
+    html+=`<div class="drill-party-row" data-party-toggle="${pid}">
+      <div class="drill-party-name"><span class="drill-chev">▶</span>${party}</div>
+      <div class="drill-num">${D(partyBudget)}</div>
+      <div class="drill-num">${partyActual>0?D(partyActual):DASH}</div>
+    </div>
+    <div class="drill-persons" id="${pid}">`;
+
+    persons.forEach((pd,person)=>{
+      const personId=`person-${Math.random().toString(36).slice(2)}`;
+      html+=`<div class="drill-person-row" data-person-toggle="${personId}">
+        <div class="drill-person-name"><span class="drill-chev">▶</span>${person}</div>
+        <div class="drill-num">${D(pd.budget)}</div>
+        <div class="drill-num">${pd.actual>0?D(pd.actual):DASH}</div>
+      </div>
+      <div class="drill-records" id="${personId}">
+        ${pd.records.map(r=>renderRecord(r,cfg,catKey)).join('')}
+      </div>`;
+    });
+    html+='</div>';
+    pi++;
+  });
+  html+='</div>';
+  return html;
+}
+
+function renderRecord(r,cfg,catKey){
+  const budget=Number(getVal(r,cfg.fids.budget)||0);
+  const actual=Number(getVal(r,cfg.fids.actual)||0);
+  let label='';
+  if(catKey==='Flights'){
+    const date=getVal(r,cfg.fids.date)||'';
+    const dir=getVal(r,cfg.fids.dir)||'';
+    label=`${date} ${dir}`;
+  }else if(catKey==='Hotels'){
+    const ci=getVal(r,cfg.fids.checkin)||'';
+    const co=getVal(r,cfg.fids.checkout)||'';
+    const nights=getVal(r,cfg.fids.nights)||'';
+    const city=getVal(r,cfg.fids.city)||'';
+    label=`${city} ${ci}→${co} (${nights}n)`;
+  }else if(catKey==='Wages'){
+    const date=getVal(r,cfg.fids.date)||'';
+    const days=getVal(r,cfg.fids.days)||'';
+    const rate=Number(getVal(r,cfg.fids.rate)||0);
+    label=`${date} · ${days} days @ ${D(rate)}/day`;
+  }
+  return`<div class="drill-record-row">
+    <div class="drill-record-label">${label}</div>
+    <div class="drill-num">${D(budget)}</div>
+    <div class="drill-num">${actual>0?D(actual):DASH}</div>
+  </div>`;
+}
+
+function renderProductionDetail(recs,cfg){
+  // Group by department then show/event
+  const depts=new Map();
+  recs.forEach(r=>{
+    const dept=getVal(r,cfg.fids.dept)||'Uncategorised';
+    const eventArr=r.fields[cfg.fids.event];
+    const event=Array.isArray(eventArr)&&eventArr.length>0
+      ?(eventArr[0].name||'Show'):'Show';
+    const desc=getVal(r,cfg.fids.desc)||'—';
+    const vendor=getVal(r,cfg.fids.vendor)||'';
+    const budget=Number(getVal(r,cfg.fids.budget)||0);
+    const actual=Number(getVal(r,cfg.fids.actual)||0);
+    const status=getVal(r,cfg.fids.status)||'';
+    if(!depts.has(dept))depts.set(dept,new Map());
+    const shows=depts.get(dept);
+    if(!shows.has(event))shows.set(event,{budget:0,actual:0,lines:[]});
+    const sd=shows.get(event);
+    sd.budget+=budget; sd.actual+=actual;
+    sd.lines.push({desc,vendor,budget,actual,status});
+  });
+
+  let html='<div class="drill-wrap">';
+  depts.forEach((shows,dept)=>{
+    const deptBudget=[...shows.values()].reduce((s,x)=>s+x.budget,0);
+    const deptActual=[...shows.values()].reduce((s,x)=>s+x.actual,0);
+    const did=`dept-${Math.random().toString(36).slice(2)}`;
+    html+=`<div class="drill-party-row" data-party-toggle="${did}">
+      <div class="drill-party-name"><span class="drill-chev">▶</span>${dept}</div>
+      <div class="drill-num">${D(deptBudget)}</div>
+      <div class="drill-num">${deptActual>0?D(deptActual):DASH}</div>
+    </div>
+    <div class="drill-persons" id="${did}">`;
+
+    shows.forEach((sd,show)=>{
+      const sid=`show-${Math.random().toString(36).slice(2)}`;
+      html+=`<div class="drill-person-row" data-person-toggle="${sid}">
+        <div class="drill-person-name"><span class="drill-chev">▶</span>${show}</div>
+        <div class="drill-num">${D(sd.budget)}</div>
+        <div class="drill-num">${sd.actual>0?D(sd.actual):DASH}</div>
+      </div>
+      <div class="drill-records" id="${sid}">
+        ${sd.lines.map(l=>`<div class="drill-record-row">
+          <div class="drill-record-label">${l.desc}${l.vendor?` <span style="color:var(--g400)">(${l.vendor})</span>`:''}${l.status?` <span class="pill gray" style="font-size:7px">${l.status}</span>`:''}</div>
+          <div class="drill-num">${D(l.budget)}</div>
+          <div class="drill-num">${l.actual>0?D(l.actual):DASH}</div>
+        </div>`).join('')}
+      </div>`;
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  return html;
+}
 
 function showPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
