@@ -1866,8 +1866,10 @@ async function loadCatDetail(i,body){
     console.log('[drill] legId:',legId,'legName:',legName,'total recs:',allRecs.length);
     if(allRecs.length>0){
       const sample=allRecs[0];
-      console.log('[drill] sample fields keys:',Object.keys(sample.fields||{}));
-      console.log('[drill] sample leg field value:',JSON.stringify(sample.fields?.[legField]));
+      const legVal=sample.fields?.[legField];
+      console.log('[drill] leg field name:',legField);
+      console.log('[drill] leg field raw value:',JSON.stringify(legVal));
+      console.log('[drill] getLegNames result:',getLegNames(sample,legField));
     }
     const legRecs=allRecs.filter(r=>{
       const names=getLegNames(r,legField);
