@@ -1911,7 +1911,7 @@ async function fetchAllByIdFiltered(tableId,fieldIds,formula){
     const res=await fetch(`${BASE}${BASE_ID}/${tableId}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
     if(!res.ok)throw new Error(`${res.status}: ${await res.text()}`);
     const d=await res.json();
-    const normalized=d.records.map(r=>({...r,fields:r.fields||r.cellValuesByFieldId||{}}));
+    const normalized=d.records.map(r=>({...r,fields:r.cellValuesByFieldId||r.fields||{}}));
     recs=recs.concat(normalized); offset=d.offset;
   }while(offset);
   return recs;
@@ -1927,11 +1927,7 @@ async function fetchAllById(tableId,fieldIds){
     const res=await fetch(`${BASE}${BASE_ID}/${tableId}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
     if(!res.ok)throw new Error(`${res.status}: ${await res.text()}`);
     const d=await res.json();
-    // API always returns cellValuesByFieldId — normalize to fields
-    const normalized=d.records.map(r=>({
-      ...r,
-      fields:r.fields||r.cellValuesByFieldId||{}
-    }));
+    const normalized=d.records.map(r=>({...r,fields:r.cellValuesByFieldId||r.fields||{}}));
     recs=recs.concat(normalized); offset=d.offset;
   }while(offset);
   return recs;
