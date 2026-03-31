@@ -1820,21 +1820,20 @@ function toggleCat(i){
 const CAT_KEYS=['Flights','Hotels','Wages','Production','Ground transport','Media','Misc'];
 const CAT_TABLES={
   'Flights':{tid:'tbl8kQbMZ0wmB2lyY',
-    fids:{party:'fld4Ocs6JQBIBlyO3',person:'fldf2MWf9FD5Ydc38',date:'fldlxhzIAPRJbw0pd',
-          dir:'fldpKdmnuKJjbkytz',budget:'fldHqrTsXPOawvJOu',actual:'fldV13j6OGdb2TCrV',
-          leg:'fldHcvedUU1PCuHv4',event:'fldh9Q4jfdg21qcz6'}},
+    fids:{party:'Party',person:'Person',date:'Date',dir:'Direction',
+          budget:'Total Budget',actual:'Actual',leg:'Tour Leg',name:'Movement ID'}},
   'Hotels':{tid:'tblDjIcqvsQ479wJe',
-    fids:{party:'fldf3yXDDKiFd976N',person:'fldlspy43HBBywYbo',checkin:'fldQw9Am6hbrHDbAt',
-          checkout:'fldktkzYQLyk67MRh',nights:'fldhUqfJvQJMBeH0d',budget:'fld1lyvCbL1d3KUFq',
-          actual:'fldqLhRuGaNgGgrQb',city:'fldBgv5EFVJ8nfY5Q',leg:'fld2QvaaLmXJGhGKm'}},
+    fids:{party:'Party Group',person:'Person',checkin:'Check In',checkout:'Check Out',
+          nights:'Nights',budget:'Hotel Budget (USD)',actual:'Actual (USD)',
+          city:'City',leg:'Tour Leg',name:'Stay ID'}},
   'Wages':{tid:'tblhsy9M9tHIABFDm',
-    fids:{party:'fld0RzBCZTvaDW8vz',person:'fld3SWMq8G3jGq3qh',date:'fldpM1fGpK3hLkd5U',
-          days:'fldgH8yASc7uhou3k',rate:'flddT6Q6NwFKxWJJf',budget:'fldHQcdD7E4sePNUq',
-          actual:'fld8B81Vpp4abaH3K',leg:'fldj0nBwsXeQbvabP'}},
+    fids:{party:'Party',person:'Person',date:'Event Date',days:'# Days',
+          rate:'Day Rate (USD)',budget:'Wages Budget (USD)',actual:'Wages Actual (USD)',
+          leg:'Tour Leg',name:'Name'}},
   'Production':{tid:'tblG65wr4nnaNOEj4',
-    fids:{desc:'fldR3RUFP86Tr65ZD',dept:'fldNUXqabiw0cOnSK',event:'fldojm8wo4kNYA9QY',
-          budget:'fld0NVRQBkcqzr6pW',actual:'fld2iMwxKT0ZzKbrL',status:'fldnm5anDQBknrGq7',
-          vendor:'fldIWhSKN8Ks6fInT',leg:'fldmMhrEkWIwlSXjg'}}
+    fids:{desc:'Description',dept:'Department',event:'Tour Event',
+          budget:'Budget (USD)',actual:'Actual (USD)',status:'Status',
+          vendor:'Vendor',leg:'Tour Leg'}}
 };
 
 async function loadCatDetail(i,body){
@@ -1965,27 +1964,36 @@ function getLegNames(r,fname){
 }
 
 function renderPersonDetail(recs,cfg,catKey){
-  // Group by party then person
   const parties=new Map();
   recs.forEach(r=>{
-    const personArr=r.fields?.[cfg.fids.person];
-    const person=Array.isArray(personArr)&&personArr.length>0
-      ?(personArr[0].name||String(personArr[0])):'Unknown';
-    const partyVal=r.fields?.[cfg.fids.party];
-    const party=(()=>{
-      if(!partyVal)return'Unassigned';
-      // nested multipleLookupValues
-      if(partyVal.valuesByLinkedRecordId){
-        const vals=Object.values(partyVal.valuesByLinkedRecordId).flat();
-        return vals.length>0?(typeof vals[0]==='object'?vals[0].name:String(vals[0])):'Unassigned';
-      }
-      if(Array.isArray(partyVal)&&partyVal.length>0)
-        return typeof partyVal[0]==='object'?partyVal[0].name:String(partyVal[0]);
-      if(typeof partyVal==='object'&&partyVal.name)return partyVal.name;
-      return String(partyVal)||'Unassigned';
-    })();
-    const budget=Number(getVal(r,cfg.fids.budget)||0);
-    const actual=Number(getVal(r,cfg.fids.actual)||0);
+    const f=r.fields||{};
+    // Party — flat array of strings e.g. ["Management"]
+    const partyVal=f[cfg.fids.party];
+    const party=Array.isArray(partyVal)&&partyVal.length>0
+      ?(typeof partyVal[0]==='object'?partyVal[0].name:String(partyVal[0]))
+      :(partyVal?String(partyVal):'Unassigned');
+
+    // Person — extract from primary Name field since Person field returns record IDs only
+    // For Flights: Movement ID contains person name in the string e.g. "2026-02-06_YUL→SJC_Justin Basch_IN"
+    // For Hotels: Stay ID similarly
+    // For Wages: Name formula has person name
+    // Person name — Movement ID / Stay ID format:
+    // "DATE_ROUTE_EventName_PersonName_Direction"
+    // Split on _ and take the segment before the last one
+    const nameField=String(f[cfg.fids.name]||'');
+    let person='Unknown';
+    if(catKey==='Flights'||catKey==='Hotels'){
+      const parts=nameField.split('_');
+      // Last part is direction (IN/OUT), second-to-last is person name
+      person=parts.length>=2?parts[parts.length-2]:nameField;
+    }else if(catKey==='Wages'){
+      // Name formula: "EventName — PersonName"
+      const match=nameField.match(/—\s*(.+)$/);
+      person=match?match[1].trim():nameField;
+    }
+
+    const budget=Number(f[cfg.fids.budget]||0);
+    const actual=Number(f[cfg.fids.actual]||0);
     if(!parties.has(party))parties.set(party,new Map());
     const persons=parties.get(party);
     if(!persons.has(person))persons.set(person,{budget:0,actual:0,records:[]});
@@ -2025,23 +2033,24 @@ function renderPersonDetail(recs,cfg,catKey){
 }
 
 function renderRecord(r,cfg,catKey){
-  const budget=Number(getVal(r,cfg.fids.budget)||0);
-  const actual=Number(getVal(r,cfg.fids.actual)||0);
+  const f=r.fields||{};
+  const budget=Number(f[cfg.fids.budget]||0);
+  const actual=Number(f[cfg.fids.actual]||0);
   let label='';
   if(catKey==='Flights'){
-    const date=getVal(r,cfg.fids.date)||'';
-    const dir=getVal(r,cfg.fids.dir)||'';
-    label=`${date} ${dir}`;
+    const date=f[cfg.fids.date]||'';
+    const dir=(f[cfg.fids.dir]?.name||f[cfg.fids.dir]||'');
+    label=`${date} · ${dir}`;
   }else if(catKey==='Hotels'){
-    const ci=getVal(r,cfg.fids.checkin)||'';
-    const co=getVal(r,cfg.fids.checkout)||'';
-    const nights=getVal(r,cfg.fids.nights)||'';
-    const city=getVal(r,cfg.fids.city)||'';
+    const ci=f[cfg.fids.checkin]||'';
+    const co=f[cfg.fids.checkout]||'';
+    const nights=f[cfg.fids.nights]||'';
+    const city=Array.isArray(f[cfg.fids.city])?f[cfg.fids.city][0]:(f[cfg.fids.city]||'');
     label=`${city} ${ci}→${co} (${nights}n)`;
   }else if(catKey==='Wages'){
-    const date=getVal(r,cfg.fids.date)||'';
-    const days=getVal(r,cfg.fids.days)||'';
-    const rate=Number(getVal(r,cfg.fids.rate)||0);
+    const date=Array.isArray(f[cfg.fids.date])?f[cfg.fids.date][0]:(f[cfg.fids.date]||'');
+    const days=f[cfg.fids.days]||'';
+    const rate=Number(Array.isArray(f[cfg.fids.rate])?f[cfg.fids.rate][0]:(f[cfg.fids.rate]||0));
     label=`${date} · ${days} days @ ${D(rate)}/day`;
   }
   return`<div class="drill-record-row">
@@ -2052,20 +2061,20 @@ function renderRecord(r,cfg,catKey){
 }
 
 function renderProductionDetail(recs,cfg){
-  // Group by department then show/event
   const depts=new Map();
   recs.forEach(r=>{
-    const dept=getVal(r,cfg.fids.dept)||'Uncategorised';
-    const eventArr=r.fields?.[cfg.fids.event];
+    const f=r.fields||{};
+    const dept=f[cfg.fids.dept]||'Uncategorised';
+    const eventArr=f[cfg.fids.event];
     const event=Array.isArray(eventArr)&&eventArr.length>0
-      ?(eventArr[0].name||'Show'):'Show';
-    const vendorArr=r.fields?.[cfg.fids.vendor];
+      ?(eventArr[0].name||String(eventArr[0])):'Show';
+    const desc=f[cfg.fids.desc]||'—';
+    const vendorArr=f[cfg.fids.vendor];
     const vendor=Array.isArray(vendorArr)&&vendorArr.length>0
-      ?(vendorArr[0].name||''):(vendorArr?String(vendorArr):'');
-    const desc=getVal(r,cfg.fids.desc)||'—';
-    const budget=Number(getVal(r,cfg.fids.budget)||0);
-    const actual=Number(getVal(r,cfg.fids.actual)||0);
-    const status=getVal(r,cfg.fids.status)||'';
+      ?(vendorArr[0].name||String(vendorArr[0])):'';
+    const status=f[cfg.fids.status]?.name||f[cfg.fids.status]||'';
+    const budget=Number(f[cfg.fids.budget]||0);
+    const actual=Number(f[cfg.fids.actual]||0);
     if(!depts.has(dept))depts.set(dept,new Map());
     const shows=depts.get(dept);
     if(!shows.has(event))shows.set(event,{budget:0,actual:0,lines:[]});
