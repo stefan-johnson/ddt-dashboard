@@ -558,7 +558,13 @@ select:focus{border-color:var(--g400);}
       <select id="dd-leg-select" onchange="onLegChange()"></select>
       <select id="dd-ver-select" onchange="onVersionChange()"></select>
       <span id="dd-badge" class="pill blue" style="display:none">Current</span>
-      <select id="dd-show-select" onchange="onShowFilter()" style="margin-left:auto"></select>
+      <div style="margin-left:auto;position:relative">
+        <button class="leg-filter-trigger" id="dd-show-trigger" onclick="toggleShowPanel(event)">
+          <span id="dd-show-label">All shows</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="leg-filter-panel" id="dd-show-panel" style="display:none;right:0;left:auto;min-width:260px"></div>
+      </div>
     </div>
     <div id="dd-insight"></div>
     <div class="page-slider-row">
@@ -742,7 +748,17 @@ async function loadData(){
 
     setLoad(80,'Loading show schedule');
     try{
-      const evr=await fetchAll('Tour Events',['Event Name','Date','Tour Leg','Status']);
+      const evr=await fetchAll('Tour Events',[
+        'Event Name','Date','Tour Leg','Status',
+        'Fee Master (USD)','MGMT 17.5%','Agent 10%',
+        'Marketing 5%','Salary 5%','Ops 4.2%','WHT $',
+        'Wages Budget','Flights Budget','Hotels Budget',
+        'Production Budget','Ground Transport Budget','Media Budget','Misc Budget',
+        'Total Tour Costs Budget',
+        'Wages Actual','Flights Actual','Hotels Actual',
+        'Production Actual','Ground Transport Actual','Media Actual','Misc Actual',
+        'Total Tour Costs Actual',
+      ]);
       tourEvents=evr;
     }catch(e){ tourEvents=[]; }
 
@@ -1610,7 +1626,96 @@ function toggleAllKpis(){
   });
 }
 
-let selShowId='__all__';
+let selShowIds=new Set(); // empty = all shows
+
+function toggleShowPanel(e){
+  e.stopPropagation();
+  const p=document.getElementById('dd-show-panel');
+  p.style.display=p.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',()=>{
+  const p=document.getElementById('dd-show-panel');
+  if(p)p.style.display='none';
+});
+
+function buildShowSelect(lid){
+  const leg=tourLegs.find(l=>l.id===lid);
+  const rawEvents=leg?.['Tour Events']||[];
+  const legEventIds=new Set(rawEvents.map(x=>typeof x==='object'?x.id:x));
+  const events=tourEvents
+    .filter(e=>legEventIds.has(e.id))
+    .map(e=>({id:e.id,name:e.fields?.['Event Name']||e.id,date:e.fields?.['Date']||''}))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name));
+
+  selShowIds=new Set();
+  window._showEvents=events;
+  _updateShowLabel();
+
+  const panel=document.getElementById('dd-show-panel');
+  panel.innerHTML=`
+    <div class="leg-filter-item" onclick="toggleAllShows()" style="border-bottom:0.5px solid var(--g100);padding-bottom:6px;margin-bottom:4px">
+      <input type="checkbox" id="show-all-chk" checked onclick="event.stopPropagation()" style="margin:0;cursor:pointer">
+      <label for="show-all-chk" style="cursor:pointer;font-weight:bold">All shows</label>
+    </div>`+
+    events.map(e=>`
+    <div class="leg-filter-item" onclick="toggleShow('${e.id}');event.stopPropagation()">
+      <input type="checkbox" id="show-${e.id}" checked onclick="event.stopPropagation()" style="margin:0;cursor:pointer">
+      <label for="show-${e.id}" style="cursor:pointer">${e.name}${e.date?` <span style="color:var(--g400);font-size:10px">· ${fmtEvDate(e.date)}</span>`:''}</label>
+    </div>`).join('');
+}
+
+function _updateShowLabel(){
+  const label=document.getElementById('dd-show-label');
+  if(!label)return;
+  const events=window._showEvents||[];
+  if(!selShowIds.size){label.textContent='All shows';return;}
+  if(selShowIds.size===1){
+    const id=[...selShowIds][0];
+    label.textContent=events.find(e=>e.id===id)?.name||'1 show';
+  }else{
+    label.textContent=`${selShowIds.size} shows`;
+  }
+}
+
+function toggleAllShows(){
+  const events=window._showEvents||[];
+  selShowIds=new Set();
+  events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=true;});
+  const allChk=document.getElementById('show-all-chk');
+  if(allChk)allChk.checked=true;
+  _updateShowLabel();
+  _onShowFilterChanged();
+}
+
+function toggleShow(id){
+  const events=window._showEvents||[];
+  if(selShowIds.has(id)){selShowIds.delete(id);}
+  else{selShowIds.add(id);}
+  // If all individually selected, treat as all
+  if(selShowIds.size===events.length)selShowIds=new Set();
+  events.forEach(e=>{
+    const c=document.getElementById('show-'+e.id);
+    if(c)c.checked=!selShowIds.size||!selShowIds.has(e.id);
+  });
+  const allChk=document.getElementById('show-all-chk');
+  if(allChk)allChk.checked=!selShowIds.size;
+  _updateShowLabel();
+  _onShowFilterChanged();
+}
+
+function onShowFilter(){}
+
+function _onShowFilterChanged(){
+  buildDrill();
+  document.querySelectorAll('.cost-body').forEach(b=>{
+    b.dataset.loaded='';
+    b.classList.remove('open');
+    const i=b.id.replace('cat-','');
+    const chev=document.getElementById('chev-'+i);
+    if(chev)chev.classList.remove('open');
+    b.querySelectorAll('.drill-wrap,.drill-no-records').forEach(el=>el.remove());
+  });
+}
 
 function buildDrillControls(){
   const sel=document.getElementById('dd-leg-select');
@@ -1621,45 +1726,6 @@ function buildDrillControls(){
     buildShowSelect(selLegId);
     buildDrill();
   }
-}
-
-function buildShowSelect(lid){
-  if(tourEvents.length>0&&!window._evDebug){
-    window._evDebug=true;
-    console.log('[evDebug] first event Tour Leg field:',JSON.stringify(tourEvents[0].fields?.['Tour Leg']));
-  }
-  // Filter tourEvents to those belonging to this leg
-  // Tour Leg field via REST by name returns [{id,name}] objects
-  const events=tourEvents.filter(e=>{
-    const tl=e.fields?.['Tour Leg'];
-    if(!tl||!Array.isArray(tl))return false;
-    return tl.some(x=>{
-      const xid=typeof x==='object'?x.id:x;
-      return xid===lid;
-    });
-  }).map(e=>({id:e.id,name:e.fields?.['Event Name']||e.id}))
-    .sort((a,b)=>a.name.localeCompare(b.name));
-
-  console.log('[show2] lid:',lid,'matched:',events.length,events.map(e=>e.name).slice(0,3));
-
-  const sel=document.getElementById('dd-show-select');
-  sel.innerHTML=`<option value="__all__">All shows</option>`+
-    events.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
-  selShowId='__all__';
-}
-
-function onShowFilter(){
-  selShowId=document.getElementById('dd-show-select').value;
-  // Reset all open drill bodies so they re-fetch with the new show filter
-  document.querySelectorAll('.cost-body').forEach(b=>{
-    b.dataset.loaded='';
-    b.classList.remove('open');
-    const i=b.id.replace('cat-','');
-    const chev=document.getElementById('chev-'+i);
-    if(chev)chev.classList.remove('open');
-    // Remove any injected drill content (keep version-notes and column header)
-    b.querySelectorAll('.drill-wrap,.drill-no-records').forEach(el=>el.remove());
-  });
 }
 
 function buildVersionSelect(lid){
@@ -1735,7 +1801,38 @@ function drillTo(lid){
 
 function buildDrill(){
   if(!selVersion)return;
-  const v=selVersion, c=compute(v,ddTarget);
+  const v=selVersion;
+
+  // If shows are filtered, compute from selected Tour Events instead of the whole leg
+  let c;
+  if(selShowIds.size>0){
+    const filteredEvs=tourEvents.filter(e=>selShowIds.has(e.id));
+    const ev=filteredEvs.reduce((acc,e)=>{
+      const f=e.fields||{};
+      acc['Total Fee (USD)']=(acc['Total Fee (USD)']||0)+(f['Fee Master (USD)']||0);
+      acc['Flights Budget']=(acc['Flights Budget']||0)+(f['Flights Budget']||0);
+      acc['Hotels Budget']=(acc['Hotels Budget']||0)+(f['Hotels Budget']||0);
+      acc['Wages Budget']=(acc['Wages Budget']||0)+(f['Wages Budget']||0);
+      acc['Production Budget']=(acc['Production Budget']||0)+(f['Production Budget']||0);
+      acc['Ground Transport Budget']=(acc['Ground Transport Budget']||0)+(f['Ground Transport Budget']||0);
+      acc['Media Budget']=(acc['Media Budget']||0)+(f['Media Budget']||0);
+      acc['Misc Budget']=(acc['Misc Budget']||0)+(f['Misc Budget']||0);
+      acc['Flights Actual']=(acc['Flights Actual']||0)+(f['Flights Actual']||0);
+      acc['Hotels Actual']=(acc['Hotels Actual']||0)+(f['Hotels Actual']||0);
+      acc['Wages Actual']=(acc['Wages Actual']||0)+(f['Wages Actual']||0);
+      acc['Production Actual']=(acc['Production Actual']||0)+(f['Production Actual']||0);
+      acc['Ground Transport Actual']=(acc['Ground Transport Actual']||0)+(f['Ground Transport Actual']||0);
+      acc['Media Actual']=(acc['Media Actual']||0)+(f['Media Actual']||0);
+      acc['Misc Actual']=(acc['Misc Actual']||0)+(f['Misc Actual']||0);
+      return acc;
+    },{});
+    // Inherit commission/alloc rates from leg
+    const merged={...v,...ev};
+    c=compute(merged,ddTarget);
+  }else{
+    c=compute(v,ddTarget);
+  }
+
   const lname=v.name||v['Name']||tourLegs.find(l=>l.id===selLegId)?.name||'—';
   const legRegion=tourLegs.find(l=>l.id===selLegId)?.region||'';
   const agentLabel=(legRegion==='NA'||legRegion==='SA')?'Agent (NSA)':'Agent (ROW)';
@@ -1903,20 +2000,22 @@ async function loadCatDetail(i,body){
     const legName=tourLegs.find(l=>l.id===legId)?.name||'';
     const fieldIds=Object.values(cfg.fids);
 
-    // Build filter: by leg, or by specific show if selected
+    // Build filter: by selected shows or whole leg
     let formula;
-    if(selShowId&&selShowId!=='__all__'){
-      const showName=document.getElementById('dd-show-select').selectedOptions[0]?.text||'';
+    if(selShowIds.size>0){
+      // Build OR formula matching any of the selected event names
       const evField=configKey==='Tour Costs'?'Tour Event':'Event';
-      formula=encodeURIComponent(`FIND("${showName}",ARRAYJOIN({${evField}}))`);
+      const showNames=[...(window._showEvents||[])].filter(e=>selShowIds.has(e.id)).map(e=>e.name);
+      if(showNames.length===1){
+        formula=encodeURIComponent(`FIND("${showNames[0]}",ARRAYJOIN({${evField}}))`);
+      }else{
+        const ors=showNames.map(n=>`FIND("${n}",ARRAYJOIN({${evField}}))`).join(',');
+        formula=encodeURIComponent(`OR(${ors})`);
+      }
     }else{
-      // All tables: Tour Leg is a lookup field — ARRAYJOIN converts values to searchable string
       formula=encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
     }
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
-
-    console.log('[drill] filtered recs:',legRecs.length);
-    if(legRecs.length>0) console.log('[drill] sample record fields:',JSON.stringify(legRecs[0].fields).slice(0,300));
 
     loadDiv.remove();
     if(!legRecs.length){
