@@ -690,6 +690,7 @@ async function loadData(){
       'Net Profit After WHT (Budget)',
       'Target Margin %','Target Net Profit','Profit Gap',
       'Additional Revenue for Target','Cost Saving for Target',
+      'Tour Events',
     ];
     // Extended fields — fetched separately, silently skipped if missing
     const TL_EXTENDED=[
@@ -1623,14 +1624,15 @@ function buildDrillControls(){
 }
 
 function buildShowSelect(lid){
-  const events=tourEvents.filter(e=>{
-    const tl=e.fields?.['Tour Leg'];
-    if(!tl||!Array.isArray(tl))return false;
-    return tl.some(x=>(typeof x==='object'?x.id:x)===lid);
-  }).map(e=>({
-    id:e.id,
-    name:e.fields?.['Event Name']||e.id
-  })).sort((a,b)=>a.name.localeCompare(b.name));
+  const leg=tourLegs.find(l=>l.id===lid);
+  // Tour Events on leg is an array of record IDs (flat linked field)
+  const legEventIds=new Set(
+    (leg?.['Tour Events']||[]).map(x=>typeof x==='object'?x.id:x)
+  );
+  const events=tourEvents
+    .filter(e=>legEventIds.has(e.id))
+    .map(e=>({id:e.id,name:e.fields?.['Event Name']||e.id}))
+    .sort((a,b)=>a.name.localeCompare(b.name));
 
   const sel=document.getElementById('dd-show-select');
   sel.innerHTML=`<option value="__all__">All shows</option>`+
@@ -1867,7 +1869,7 @@ const CAT_TABLES={
   'Tour Costs':{tid:'tblG65wr4nnaNOEj4',
     fids:{desc:'Description',dept:'Department',event:'Tour Event',
           budget:'Budget (USD)',actual:'Actual (USD)',status:'Status',
-          vendor:'Vendor',leg:'Tour Leg',name:'Name'}}
+          leg:'Tour Leg',name:'Name'}}
 };
 
 async function loadCatDetail(i,body){
@@ -1896,11 +1898,20 @@ async function loadCatDetail(i,body){
     let formula;
     if(selShowId&&selShowId!=='__all__'){
       const showName=document.getElementById('dd-show-select').selectedOptions[0]?.text||'';
-      // Each table uses a different event field name
       const evField=configKey==='Tour Costs'?'Tour Event':'Event';
       formula=encodeURIComponent(`FIND("${showName}",ARRAYJOIN({${evField}}))`);
+    }else if(configKey==='Tour Costs'){
+      // Tour Costs Tour Leg is a multipleLookupValues — filter via linked Tour Event IDs instead
+      const leg=tourLegs.find(l=>l.id===legId);
+      const eventIds=(leg?.['Tour Events']||[]).map(x=>typeof x==='object'?x.id:x);
+      if(!eventIds.length){
+        loadDiv.remove();
+        body.insertAdjacentHTML('beforeend','<div style="padding:10px 16px;font-size:11px;color:var(--g400)">No shows found for this leg.</div>');
+        return;
+      }
+      const orParts=eventIds.map(id=>`RECORD_ID({Tour Event})="${id}"`).join(',');
+      formula=encodeURIComponent(`OR(${orParts})`);
     }else{
-      // Filter by leg name — Tour Leg is a lookup field; use ARRAYJOIN to convert to string
       formula=encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
     }
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
@@ -2118,9 +2129,7 @@ function renderProductionDetail(recs,cfg){
       ?(typeof eventArr[0]==='object'&&eventArr[0].name?eventArr[0].name:String(eventArr[0]))
       :(recName.split(' — ')[0]||'Show');
     const desc=f[cfg.fids.desc]||'—';
-    const vendorArr=f[cfg.fids.vendor];
-    const vendor=Array.isArray(vendorArr)&&vendorArr.length>0
-      ?(typeof vendorArr[0]==='object'?vendorArr[0].name:String(vendorArr[0])):'';
+    const vendor='';
     const status=f[cfg.fids.status]?.name||f[cfg.fids.status]||'';
     const budget=Number(f[cfg.fids.budget]||0);
     const actual=Number(f[cfg.fids.actual]||0);
