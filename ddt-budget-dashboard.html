@@ -1625,14 +1625,14 @@ function buildDrillControls(){
 
 function buildShowSelect(lid){
   const leg=tourLegs.find(l=>l.id===lid);
-  // Tour Events on leg is an array of record IDs (flat linked field)
-  const legEventIds=new Set(
-    (leg?.['Tour Events']||[]).map(x=>typeof x==='object'?x.id:x)
-  );
+  const rawEvents=leg?.['Tour Events']||[];
+  console.log('[show] leg:',leg?.name,'raw Tour Events:',JSON.stringify(rawEvents).slice(0,200));
+  const legEventIds=new Set(rawEvents.map(x=>typeof x==='object'?x.id:x));
   const events=tourEvents
     .filter(e=>legEventIds.has(e.id))
     .map(e=>({id:e.id,name:e.fields?.['Event Name']||e.id}))
     .sort((a,b)=>a.name.localeCompare(b.name));
+  console.log('[show] matched events:',events.length,'ids:',JSON.stringify([...legEventIds]).slice(0,100));
 
   const sel=document.getElementById('dd-show-select');
   sel.innerHTML=`<option value="__all__">All shows</option>`+
@@ -1900,18 +1900,8 @@ async function loadCatDetail(i,body){
       const showName=document.getElementById('dd-show-select').selectedOptions[0]?.text||'';
       const evField=configKey==='Tour Costs'?'Tour Event':'Event';
       formula=encodeURIComponent(`FIND("${showName}",ARRAYJOIN({${evField}}))`);
-    }else if(configKey==='Tour Costs'){
-      // Tour Costs Tour Leg is a multipleLookupValues — filter via linked Tour Event IDs instead
-      const leg=tourLegs.find(l=>l.id===legId);
-      const eventIds=(leg?.['Tour Events']||[]).map(x=>typeof x==='object'?x.id:x);
-      if(!eventIds.length){
-        loadDiv.remove();
-        body.insertAdjacentHTML('beforeend','<div style="padding:10px 16px;font-size:11px;color:var(--g400)">No shows found for this leg.</div>');
-        return;
-      }
-      const orParts=eventIds.map(id=>`RECORD_ID({Tour Event})="${id}"`).join(',');
-      formula=encodeURIComponent(`OR(${orParts})`);
     }else{
+      // All tables: Tour Leg is a lookup field — ARRAYJOIN converts values to searchable string
       formula=encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
     }
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
@@ -1925,7 +1915,7 @@ async function loadCatDetail(i,body){
       return;
     }
 
-    const html=configKey==='Production'
+    const html=configKey==='Tour Costs'
       ?renderProductionDetail(legRecs,cfg)
       :renderPersonDetail(legRecs,cfg,configKey);
 
