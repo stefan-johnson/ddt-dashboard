@@ -1653,14 +1653,15 @@ function buildShowSelect(lid){
 
   const panel=document.getElementById('dd-show-panel');
   panel.innerHTML=`
-    <div class="leg-filter-item" onclick="toggleAllShows()" style="border-bottom:0.5px solid var(--g100);padding-bottom:6px;margin-bottom:4px">
-      <input type="checkbox" id="show-all-chk" checked onclick="event.stopPropagation()" style="margin:0;cursor:pointer">
-      <label for="show-all-chk" style="cursor:pointer;font-weight:bold">All shows</label>
-    </div>`+
+    <div class="leg-filter-item">
+      <input type="checkbox" id="show-all-chk" checked onchange="toggleAllShows()" style="margin:0;cursor:pointer">
+      <span style="cursor:pointer;font-weight:bold" onclick="document.getElementById('show-all-chk').click()">All shows</span>
+    </div>
+    <div style="height:1px;background:var(--g100);margin:4px 0"></div>`+
     events.map(e=>`
-    <div class="leg-filter-item" onclick="toggleShow('${e.id}');event.stopPropagation()">
-      <input type="checkbox" id="show-${e.id}" checked onclick="event.stopPropagation()" style="margin:0;cursor:pointer">
-      <label for="show-${e.id}" style="cursor:pointer">${e.name}${e.date?` <span style="color:var(--g400);font-size:10px">· ${fmtEvDate(e.date)}</span>`:''}</label>
+    <div class="leg-filter-item">
+      <input type="checkbox" id="show-${e.id}" checked onchange="toggleShow('${e.id}')" style="margin:0;cursor:pointer">
+      <span style="cursor:pointer" onclick="document.getElementById('show-${e.id}').click()">${e.name}${e.date?` <span style="color:var(--g400);font-size:10px">· ${fmtEvDate(e.date)}</span>`:''}</span>
     </div>`).join('');
 }
 
@@ -1679,26 +1680,48 @@ function _updateShowLabel(){
 
 function toggleAllShows(){
   const events=window._showEvents||[];
-  selShowIds=new Set();
-  events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=true;});
   const allChk=document.getElementById('show-all-chk');
-  if(allChk)allChk.checked=true;
+  // If all-shows is now checked, clear individual selections
+  if(allChk&&allChk.checked){
+    selShowIds=new Set();
+    events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=true;});
+  }else{
+    // All unchecked — no valid state, revert to all
+    allChk.checked=true;
+    selShowIds=new Set();
+    events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=true;});
+  }
   _updateShowLabel();
   _onShowFilterChanged();
 }
 
 function toggleShow(id){
   const events=window._showEvents||[];
-  if(selShowIds.has(id)){selShowIds.delete(id);}
-  else{selShowIds.add(id);}
-  // If all individually selected, treat as all
+  const chk=document.getElementById('show-'+id);
+  const allChk=document.getElementById('show-all-chk');
+  const isNowChecked=chk?chk.checked:false;
+
+  if(selShowIds.size===0){
+    // Was "all selected" — unchecking means select all EXCEPT this one
+    if(!isNowChecked){
+      events.forEach(e=>{if(e.id!==id)selShowIds.add(e.id);});
+    }
+  }else{
+    if(isNowChecked){selShowIds.add(id);}
+    else{selShowIds.delete(id);}
+  }
+
+  // If all individually selected, revert to "all" state
   if(selShowIds.size===events.length)selShowIds=new Set();
+
+  // Sync all checkboxes
+  const allSelected=selShowIds.size===0;
+  if(allChk)allChk.checked=allSelected;
   events.forEach(e=>{
     const c=document.getElementById('show-'+e.id);
-    if(c)c.checked=!selShowIds.size||!selShowIds.has(e.id);
+    if(c)c.checked=allSelected||selShowIds.has(e.id);
   });
-  const allChk=document.getElementById('show-all-chk');
-  if(allChk)allChk.checked=!selShowIds.size;
+
   _updateShowLabel();
   _onShowFilterChanged();
 }
