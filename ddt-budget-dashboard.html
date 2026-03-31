@@ -741,7 +741,7 @@ async function loadData(){
 
     setLoad(80,'Loading show schedule');
     try{
-      const evr=await fetchAll('Tour Events',['Date','Tour Leg','Status']);
+      const evr=await fetchAll('Tour Events',['Event Name','Date','Tour Leg','Status']);
       tourEvents=evr;
     }catch(e){ tourEvents=[]; }
 
@@ -1623,11 +1623,16 @@ function buildDrillControls(){
 }
 
 function buildShowSelect(lid){
-  const leg=tourLegs.find(l=>l.id===lid);
-  const events=(leg?.['Tour Events']||[]).map(eid=>{
-    const ev=tourEvents.find(e=>e.id===eid);
-    return ev?{id:ev.id,name:ev.fields?.['Event Name']||ev.id}:null;
-  }).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+  // Filter tourEvents to those linked to this leg
+  const events=tourEvents.filter(e=>{
+    const tl=e.fields?.['Tour Leg'];
+    if(!tl)return false;
+    if(Array.isArray(tl))return tl.includes(lid)||tl.some(x=>x?.id===lid);
+    return false;
+  }).map(e=>({
+    id:e.id,
+    name:e.fields?.['Event Name']||e.id
+  })).sort((a,b)=>a.name.localeCompare(b.name));
 
   const sel=document.getElementById('dd-show-select');
   sel.innerHTML=`<option value="__all__">All shows</option>`+
@@ -1860,7 +1865,7 @@ const CAT_TABLES={
   'Wages':{tid:'tblhsy9M9tHIABFDm',
     fids:{party:'Party',person:'Person',date:'Event Date',days:'# Days',
           rate:'Day Rate (USD)',budget:'Wages Budget (USD)',actual:'Wages Actual (USD)',
-          leg:'Tour Leg',name:'Name'}},
+          leg:'Tour Leg',name:'Name',pd:'Total PD'}},
   'Tour Costs':{tid:'tblG65wr4nnaNOEj4',
     fids:{desc:'Description',dept:'Department',event:'Tour Event',
           budget:'Budget (USD)',actual:'Actual (USD)',status:'Status',
@@ -1893,17 +1898,12 @@ async function loadCatDetail(i,body){
     // Build filter: by leg, or by specific show if selected
     let formula;
     if(selShowId&&selShowId!=='__all__'){
-      // Filter by specific Tour Event record ID via RECORD_ID match on Tour Event field
       const showName=document.getElementById('dd-show-select').selectedOptions[0]?.text||'';
-      if(configKey==='Tour Costs'){
-        formula=encodeURIComponent(`FIND("${showName}",{Tour Event})`);
-      }else if(configKey==='Wages'){
-        formula=encodeURIComponent(`FIND("${showName}",{Name})`);
-      }else{
-        formula=encodeURIComponent(`FIND("${showName}",{Event})`);
-      }
+      // Filter by event name — works for all tables
+      formula=encodeURIComponent(`FIND("${showName}",{Tour Event})`);
     }else{
-      formula=encodeURIComponent(`FIND("${legName}",{${legFieldName}})`);
+      // Filter by leg name using ARRAYJOIN to handle lookup fields
+      formula=encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
     }
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
 
@@ -2095,7 +2095,7 @@ function renderRecord(r,cfg,catKey){
     const eventName=recName.split(' — ')[0]||recName;
     const days=f[cfg.fids.days]||'';
     const rate=Number(Array.isArray(f[cfg.fids.rate])?f[cfg.fids.rate][0]:(f[cfg.fids.rate]||0));
-    const totalPd=Number(f['Total PD']||0);
+    const totalPd=Number(f[cfg.fids.pd]||0);
     const pdStr=totalPd>0?` + ${D(totalPd)} PD`:'';
     label=`${eventName} · ${days} days @ ${D(rate)}/day${pdStr}`;
   }
@@ -2116,9 +2116,9 @@ function renderProductionDetail(recs,cfg){
     const recName=String(f[cfg.fids.name]||'');
     // Name format is typically "EventName — Description", extract event part
     const eventArr=f[cfg.fids.event];
-    // Use the record name from the linked event if available; Name field has full label
+    // Tour Event is a linked record field returning [{id, name}] objects directly
     const event=Array.isArray(eventArr)&&eventArr.length>0
-      ?(typeof eventArr[0]==='object'?eventArr[0].name:String(eventArr[0]))
+      ?(typeof eventArr[0]==='object'&&eventArr[0].name?eventArr[0].name:String(eventArr[0]))
       :(recName.split(' — ')[0]||'Show');
     const desc=f[cfg.fids.desc]||'—';
     const vendorArr=f[cfg.fids.vendor];
