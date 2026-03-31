@@ -1729,6 +1729,7 @@ function drillTo(lid){
   document.getElementById('dd-leg-select').value=lid;
   selLegId=lid;
   buildVersionSelect(lid);
+  buildShowSelect(lid);
   buildDrill();
 }
 
@@ -2112,19 +2113,30 @@ function renderRecord(r,cfg,catKey){
   </div>`;
 }
 
+function fmtEvDate(d){
+  if(!d)return'';
+  const dt=new Date(d+'T12:00:00Z');
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const day=dt.getUTCDate();
+  const suf=day===1||day===21||day===31?'st':day===2||day===22?'nd':day===3||day===23?'rd':'th';
+  return`${days[dt.getUTCDay()]} ${day}${suf} ${months[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`;
+}
+
 function renderProductionDetail(recs,cfg){
   const depts=new Map();
   recs.forEach(r=>{
     const f=r.fields||{};
     const dept=f[cfg.fids.dept]||'Uncategorised';
-    // Name formula: "Description — Event Name" or similar — use it to extract show name
-    // Tour Event field returns array of record IDs; use Name field which has event embedded
     const recName=String(f[cfg.fids.name]||'');
-    // Name format is typically "EventName — Description", extract event part
-    const eventArr=f[cfg.fids.event];
-    // Tour Event returns flat record ID strings - extract event name from Name formula instead
-    // Name format: "EventName — Description (Version)"
-    const event=recName.split(' — ')[0]||'Show';
+    const eventName=recName.split(' — ')[0]||'Show';
+    // Look up event date from tourEvents using the linked event ID
+    const evIdArr=f[cfg.fids.event];
+    const evId=Array.isArray(evIdArr)&&evIdArr.length>0?evIdArr[0]:null;
+    const evRec=evId?tourEvents.find(e=>e.id===evId):null;
+    const evDate=evRec?.fields?.['Date']||'';
+    const evLabel=evDate?`${eventName} · ${fmtEvDate(evDate)}`:eventName;
+    const evSortKey=evDate||eventName;
     const desc=f[cfg.fids.desc]||'—';
     const vendor='';
     const status=f[cfg.fids.status]?.name||f[cfg.fids.status]||'';
@@ -2132,8 +2144,8 @@ function renderProductionDetail(recs,cfg){
     const actual=Number(f[cfg.fids.actual]||0);
     if(!depts.has(dept))depts.set(dept,new Map());
     const shows=depts.get(dept);
-    if(!shows.has(event))shows.set(event,{budget:0,actual:0,lines:[]});
-    const sd=shows.get(event);
+    if(!shows.has(evLabel))shows.set(evLabel,{budget:0,actual:0,lines:[],sortKey:evSortKey});
+    const sd=shows.get(evLabel);
     sd.budget+=budget; sd.actual+=actual;
     sd.lines.push({desc,vendor,budget,actual,status});
   });
@@ -2149,8 +2161,10 @@ function renderProductionDetail(recs,cfg){
       <div class="drill-num">${deptActual>0?D(deptActual):DASH}</div>
     </div>
     <div class="drill-persons" id="${did}">`;
+    // Sort shows by date
+    const sortedShows=[...shows.entries()].sort((a,b)=>a[1].sortKey.localeCompare(b[1].sortKey));
 
-    shows.forEach((sd,show)=>{
+    sortedShows.forEach(([show,sd])=>{
       const sid=`show-${Math.random().toString(36).slice(2)}`;
       html+=`<div class="drill-person-row" data-person-toggle="${sid}">
         <div class="drill-person-name"><span class="drill-chev">▶</span>${show}</div>
@@ -2159,7 +2173,7 @@ function renderProductionDetail(recs,cfg){
       </div>
       <div class="drill-records" id="${sid}">
         ${sd.lines.map(l=>`<div class="drill-record-row">
-          <div class="drill-record-label">${l.desc}${l.vendor?` <span style="color:var(--g400)">(${l.vendor})</span>`:''}${l.status?` <span class="pill gray" style="font-size:7px">${l.status}</span>`:''}</div>
+          <div class="drill-record-label">${l.desc}${l.status?` <span class="pill gray" style="font-size:7px">${l.status}</span>`:''}</div>
           <div class="drill-num">${D(l.budget)}</div>
           <div class="drill-num">${l.actual>0?D(l.actual):DASH}</div>
         </div>`).join('')}
