@@ -1631,11 +1631,15 @@ let selShowIds=new Set(); // empty = all shows
 function toggleShowPanel(e){
   e.stopPropagation();
   const p=document.getElementById('dd-show-panel');
-  p.style.display=p.style.display==='none'?'block':'none';
+  const isOpen=p.style.display!=='none';
+  p.style.display=isOpen?'none':'block';
 }
-document.addEventListener('click',()=>{
+document.addEventListener('click',(e)=>{
   const p=document.getElementById('dd-show-panel');
-  if(p)p.style.display='none';
+  const t=document.getElementById('dd-show-trigger');
+  if(p&&t&&!p.contains(e.target)&&!t.contains(e.target)){
+    p.style.display='none';
+  }
 });
 
 function buildShowSelect(lid){
@@ -1830,6 +1834,7 @@ function buildDrill(){
   let c;
   if(selShowIds.size>0){
     const filteredEvs=tourEvents.filter(e=>selShowIds.has(e.id));
+    console.log('[filter] selShowIds:',selShowIds.size,'filteredEvs:',filteredEvs.length,'first fields keys:',filteredEvs[0]?Object.keys(filteredEvs[0].fields||{}).slice(0,5):[]);
     const ev=filteredEvs.reduce((acc,e)=>{
       const f=e.fields||{};
       acc['Total Fee (USD)']=(acc['Total Fee (USD)']||0)+(f['Fee Master (USD)']||0);
