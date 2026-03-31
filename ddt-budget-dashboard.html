@@ -558,6 +558,7 @@ select:focus{border-color:var(--g400);}
       <select id="dd-leg-select" onchange="onLegChange()"></select>
       <select id="dd-ver-select" onchange="onVersionChange()"></select>
       <span id="dd-badge" class="pill blue" style="display:none">Current</span>
+      <select id="dd-show-select" onchange="onShowFilter()" style="margin-left:auto"></select>
     </div>
     <div id="dd-insight"></div>
     <div class="page-slider-row">
@@ -1608,14 +1609,44 @@ function toggleAllKpis(){
   });
 }
 
+let selShowId='__all__';
+
 function buildDrillControls(){
   const sel=document.getElementById('dd-leg-select');
   sel.innerHTML=tourLegs.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
   if(tourLegs.length){
     selLegId=tourLegs[0].id;
     buildVersionSelect(selLegId);
+    buildShowSelect(selLegId);
     buildDrill();
   }
+}
+
+function buildShowSelect(lid){
+  const leg=tourLegs.find(l=>l.id===lid);
+  const events=(leg?.['Tour Events']||[]).map(eid=>{
+    const ev=tourEvents.find(e=>e.id===eid);
+    return ev?{id:ev.id,name:ev.fields?.['Event Name']||ev.id}:null;
+  }).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+
+  const sel=document.getElementById('dd-show-select');
+  sel.innerHTML=`<option value="__all__">All shows</option>`+
+    events.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+  selShowId='__all__';
+}
+
+function onShowFilter(){
+  selShowId=document.getElementById('dd-show-select').value;
+  // Reset all open drill bodies so they re-fetch with the new show filter
+  document.querySelectorAll('.cost-body').forEach(b=>{
+    b.dataset.loaded='';
+    b.classList.remove('open');
+    const i=b.id.replace('cat-','');
+    const chev=document.getElementById('chev-'+i);
+    if(chev)chev.classList.remove('open');
+    // Remove any injected drill content (keep version-notes and column header)
+    b.querySelectorAll('.drill-wrap,.drill-no-records').forEach(el=>el.remove());
+  });
 }
 
 function buildVersionSelect(lid){
@@ -1644,6 +1675,7 @@ function _applyLegToVersion(lid){
 function onLegChange(){
   selLegId=document.getElementById('dd-leg-select').value;
   buildVersionSelect(selLegId);
+  buildShowSelect(selLegId);
   buildDrill();
 }
 
@@ -1748,15 +1780,14 @@ function buildDrill(){
     <div class="pm-cell"><div class="pm-label">At target?</div><div class="pm-value ${at?'green':'red'}">${at?'Yes':'No'}</div></div>
   `;
 
-  // Cost breakdown — 7 categories, actuals always from live Tour Legs
+  // Cost breakdown — 4 categories
+  const tourCostsBudget=c.pr+c.gt+c.md+c.ms;
+  const tourCostsAct=c.prAct+c.gtAct+c.mdAct+c.msAct;
   const cats=[
-    {key:'Flights',      budget:c.fl,  actual:c.flAct,  hasAct:c.flAct>0,  notes:v['Flights Notes']},
-    {key:'Hotels',       budget:c.ht,  actual:c.htAct,  hasAct:c.htAct>0,  notes:v['Hotels Notes']},
-    {key:'Wages',        budget:c.wg,  actual:c.wgAct,  hasAct:c.wgAct>0,  notes:v['Wages Notes']},
-    {key:'Production',   budget:c.pr,  actual:c.prAct,  hasAct:c.prAct>0,  notes:v['Production Notes']},
-    {key:'Ground transport', budget:c.gt, actual:c.gtAct, hasAct:c.gtAct>0, notes:v['Ground Transport Notes']},
-    {key:'Media',        budget:c.md,  actual:c.mdAct,  hasAct:c.mdAct>0,  notes:v['Media Notes']},
-    {key:'Misc',         budget:c.ms,  actual:c.msAct,  hasAct:c.msAct>0,  notes:v['Misc Notes']},
+    {key:'Flights',     budget:c.fl,          actual:c.flAct,     hasAct:c.flAct>0,     notes:v['Flights Notes']},
+    {key:'Hotels',      budget:c.ht,          actual:c.htAct,     hasAct:c.htAct>0,     notes:v['Hotels Notes']},
+    {key:'Wages',       budget:c.wg,          actual:c.wgAct,     hasAct:c.wgAct>0,     notes:v['Wages Notes']},
+    {key:'Tour Costs',  budget:tourCostsBudget,actual:tourCostsAct,hasAct:tourCostsAct>0,notes:null},
   ];
 
   const totalActual=c.costsAct;
@@ -1817,7 +1848,7 @@ function toggleCat(i){
   }
 }
 
-const CAT_KEYS=['Flights','Hotels','Wages','Production','Ground transport','Media','Misc'];
+const CAT_KEYS=['Flights','Hotels','Wages','Tour Costs'];
 const CAT_TABLES={
   'Flights':{tid:'tbl8kQbMZ0wmB2lyY',
     fids:{party:'Party',person:'Person',date:'Date',dir:'Direction',
@@ -1830,22 +1861,20 @@ const CAT_TABLES={
     fids:{party:'Party',person:'Person',date:'Event Date',days:'# Days',
           rate:'Day Rate (USD)',budget:'Wages Budget (USD)',actual:'Wages Actual (USD)',
           leg:'Tour Leg',name:'Name'}},
-  'Production':{tid:'tblG65wr4nnaNOEj4',
+  'Tour Costs':{tid:'tblG65wr4nnaNOEj4',
     fids:{desc:'Description',dept:'Department',event:'Tour Event',
           budget:'Budget (USD)',actual:'Actual (USD)',status:'Status',
-          vendor:'Vendor',leg:'Tour Leg'}}
+          vendor:'Vendor',leg:'Tour Leg',name:'Name'}}
 };
 
 async function loadCatDetail(i,body){
   const catKey=CAT_KEYS[i];
   if(!catKey){return;}
-  // Map category index to config key
-  const configKey=['Flights','Hotels','Wages','Production','Ground transport','Media','Misc'][i];
+  const configKey=CAT_KEYS[i];
   const cfg=CAT_TABLES[configKey];
   if(!cfg){
-    // No detail view for this category yet
     if(!body.querySelector('.version-notes'))
-      body.insertAdjacentHTML('beforeend','<div style="padding:10px 16px;font-size:11px;color:var(--g400)">Detailed breakdown coming soon.</div>');
+      body.insertAdjacentHTML('beforeend','<div style="padding:10px 16px;font-size:11px;color:var(--g400)">No detailed breakdown available.</div>');
     return;
   }
 
@@ -1858,13 +1887,24 @@ async function loadCatDetail(i,body){
   try{
     const legId=selLegId;
     const legName=tourLegs.find(l=>l.id===legId)?.name||'';
-    const legFieldName=({
-      'Flights':'Tour Leg','Hotels':'Tour Leg','Wages':'Tour Leg','Production':'Tour Leg'
-    })[configKey]||'Tour Leg';
+    const legFieldName='Tour Leg';
     const fieldIds=Object.values(cfg.fids);
 
-    // Use filterByFormula to pre-filter server-side by leg name (lookup returns leg name as text)
-    const formula=encodeURIComponent(`FIND("${legName}",{${legFieldName}})`);
+    // Build filter: by leg, or by specific show if selected
+    let formula;
+    if(selShowId&&selShowId!=='__all__'){
+      // Filter by specific Tour Event record ID via RECORD_ID match on Tour Event field
+      const showName=document.getElementById('dd-show-select').selectedOptions[0]?.text||'';
+      if(configKey==='Tour Costs'){
+        formula=encodeURIComponent(`FIND("${showName}",{Tour Event})`);
+      }else if(configKey==='Wages'){
+        formula=encodeURIComponent(`FIND("${showName}",{Name})`);
+      }else{
+        formula=encodeURIComponent(`FIND("${showName}",{Event})`);
+      }
+    }else{
+      formula=encodeURIComponent(`FIND("${legName}",{${legFieldName}})`);
+    }
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
 
     console.log('[drill] filtered recs:',legRecs.length);
@@ -2036,22 +2076,28 @@ function renderRecord(r,cfg,catKey){
   const f=r.fields||{};
   const budget=Number(f[cfg.fids.budget]||0);
   const actual=Number(f[cfg.fids.actual]||0);
+  const recName=String(f[cfg.fids.name]||'');
   let label='';
   if(catKey==='Flights'){
-    const date=f[cfg.fids.date]||'';
-    const dir=(f[cfg.fids.dir]?.name||f[cfg.fids.dir]||'');
-    label=`${date} · ${dir}`;
+    // Movement ID: "DATE_FROM → TO_EventName_PersonName_Direction"
+    const parts=recName.split('_');
+    const dir=parts.length>0?parts[parts.length-1]:'';
+    const eventName=parts.length>=3?parts.slice(2,-2).join(' '):recName;
+    label=`${eventName} · ${dir}`;
   }else if(catKey==='Hotels'){
-    const ci=f[cfg.fids.checkin]||'';
-    const co=f[cfg.fids.checkout]||'';
+    // Stay ID: "DATE_EventName_PersonName_PartyGroup"
+    const parts=recName.split('_');
     const nights=f[cfg.fids.nights]||'';
-    const city=Array.isArray(f[cfg.fids.city])?f[cfg.fids.city][0]:(f[cfg.fids.city]||'');
-    label=`${city} ${ci}→${co} (${nights}n)`;
+    const eventName=parts.length>=2?parts.slice(1,-2).join(' '):recName;
+    label=`${eventName} · ${nights} night${nights===1?'':'s'}`;
   }else if(catKey==='Wages'){
-    const date=Array.isArray(f[cfg.fids.date])?f[cfg.fids.date][0]:(f[cfg.fids.date]||'');
+    // Name: "EventName — PersonName"
+    const eventName=recName.split(' — ')[0]||recName;
     const days=f[cfg.fids.days]||'';
     const rate=Number(Array.isArray(f[cfg.fids.rate])?f[cfg.fids.rate][0]:(f[cfg.fids.rate]||0));
-    label=`${date} · ${days} days @ ${D(rate)}/day`;
+    const totalPd=Number(f['Total PD']||0);
+    const pdStr=totalPd>0?` + ${D(totalPd)} PD`:'';
+    label=`${eventName} · ${days} days @ ${D(rate)}/day${pdStr}`;
   }
   return`<div class="drill-record-row">
     <div class="drill-record-label">${label}</div>
@@ -2065,13 +2111,19 @@ function renderProductionDetail(recs,cfg){
   recs.forEach(r=>{
     const f=r.fields||{};
     const dept=f[cfg.fids.dept]||'Uncategorised';
+    // Name formula: "Description — Event Name" or similar — use it to extract show name
+    // Tour Event field returns array of record IDs; use Name field which has event embedded
+    const recName=String(f[cfg.fids.name]||'');
+    // Name format is typically "EventName — Description", extract event part
     const eventArr=f[cfg.fids.event];
+    // Use the record name from the linked event if available; Name field has full label
     const event=Array.isArray(eventArr)&&eventArr.length>0
-      ?(eventArr[0].name||String(eventArr[0])):'Show';
+      ?(typeof eventArr[0]==='object'?eventArr[0].name:String(eventArr[0]))
+      :(recName.split(' — ')[0]||'Show');
     const desc=f[cfg.fids.desc]||'—';
     const vendorArr=f[cfg.fids.vendor];
     const vendor=Array.isArray(vendorArr)&&vendorArr.length>0
-      ?(vendorArr[0].name||String(vendorArr[0])):'';
+      ?(typeof vendorArr[0]==='object'?vendorArr[0].name:String(vendorArr[0])):'';
     const status=f[cfg.fids.status]?.name||f[cfg.fids.status]||'';
     const budget=Number(f[cfg.fids.budget]||0);
     const actual=Number(f[cfg.fids.actual]||0);
