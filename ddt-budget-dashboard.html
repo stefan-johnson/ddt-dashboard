@@ -1858,25 +1858,17 @@ async function loadCatDetail(i,body){
 
   try{
     const legId=selLegId;
-    const fieldIds=Object.values(cfg.fids);
-    const allRecs=await fetchAllById(cfg.tid,fieldIds);
-
-    const legField=cfg.fids.leg;
     const legName=tourLegs.find(l=>l.id===legId)?.name||'';
-    console.log('[drill] legId:',legId,'legName:',legName,'total recs:',allRecs.length);
-    const legRecs=allRecs.filter(r=>{
-      const v=r.fields?.[legField];
-      if(!v)return false;
-      // Simple array of record IDs
-      if(Array.isArray(v))return v.includes(legId)||v.some(x=>x?.id===legId);
-      // multipleLookupValues nested: {linkedRecordIds, valuesByLinkedRecordId:{evtId:[{id:legId,name}]}}
-      if(v.valuesByLinkedRecordId){
-        return Object.values(v.valuesByLinkedRecordId).flat()
-          .some(x=>x?.id===legId||x?.name===legName||x===legId);
-      }
-      if(v.linkedRecordIds)return v.linkedRecordIds.includes(legId);
-      return false;
-    });
+    const legFieldName=({
+      'Flights':'Tour Leg','Hotels':'Tour Leg','Wages':'Tour Leg','Production':'Tour Leg'
+    })[configKey]||'Tour Leg';
+    const fieldIds=Object.values(cfg.fids);
+
+    // Use filterByFormula to pre-filter server-side by leg name (lookup returns leg name as text)
+    const formula=encodeURIComponent(`FIND("${legName}",{${legFieldName}})`);
+    const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
+
+    console.log('[drill] legId:',legId,'legName:',legName,'filtered recs:',legRecs.length);
 
     loadDiv.remove();
     if(!legRecs.length){
@@ -1906,6 +1898,23 @@ async function loadCatDetail(i,body){
   }catch(e){
     loadDiv.textContent='Error loading detail: '+e.message;
   }
+}
+
+async function fetchAllByIdFiltered(tableId,fieldIds,formula){
+  const BASE='https://api.airtable.com/v0/';
+  let recs=[],offset=null;
+  do{
+    const p=new URLSearchParams();
+    fieldIds.forEach(f=>p.append('fields[]',f));
+    p.set('filterByFormula',decodeURIComponent(formula));
+    if(offset)p.set('offset',offset);
+    const res=await fetch(`${BASE}${BASE_ID}/${tableId}?${p}`,{headers:{Authorization:`Bearer ${API_KEY}`}});
+    if(!res.ok)throw new Error(`${res.status}: ${await res.text()}`);
+    const d=await res.json();
+    const normalized=d.records.map(r=>({...r,fields:r.fields||r.cellValuesByFieldId||{}}));
+    recs=recs.concat(normalized); offset=d.offset;
+  }while(offset);
+  return recs;
 }
 
 async function fetchAllById(tableId,fieldIds){
