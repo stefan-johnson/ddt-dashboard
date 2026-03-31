@@ -1624,15 +1624,23 @@ function buildDrillControls(){
 }
 
 function buildShowSelect(lid){
-  const leg=tourLegs.find(l=>l.id===lid);
-  const rawEvents=leg?.['Tour Events']||[];
-  console.log('[show] leg:',leg?.name,'raw Tour Events:',JSON.stringify(rawEvents).slice(0,200));
-  const legEventIds=new Set(rawEvents.map(x=>typeof x==='object'?x.id:x));
-  const events=tourEvents
-    .filter(e=>legEventIds.has(e.id))
-    .map(e=>({id:e.id,name:e.fields?.['Event Name']||e.id}))
+  if(tourEvents.length>0&&!window._evDebug){
+    window._evDebug=true;
+    console.log('[evDebug] first event Tour Leg field:',JSON.stringify(tourEvents[0].fields?.['Tour Leg']));
+  }
+  // Filter tourEvents to those belonging to this leg
+  // Tour Leg field via REST by name returns [{id,name}] objects
+  const events=tourEvents.filter(e=>{
+    const tl=e.fields?.['Tour Leg'];
+    if(!tl||!Array.isArray(tl))return false;
+    return tl.some(x=>{
+      const xid=typeof x==='object'?x.id:x;
+      return xid===lid;
+    });
+  }).map(e=>({id:e.id,name:e.fields?.['Event Name']||e.id}))
     .sort((a,b)=>a.name.localeCompare(b.name));
-  console.log('[show] matched events:',events.length,'ids:',JSON.stringify([...legEventIds]).slice(0,100));
+
+  console.log('[show2] lid:',lid,'matched:',events.length,events.map(e=>e.name).slice(0,3));
 
   const sel=document.getElementById('dd-show-select');
   sel.innerHTML=`<option value="__all__">All shows</option>`+
@@ -2114,10 +2122,9 @@ function renderProductionDetail(recs,cfg){
     const recName=String(f[cfg.fids.name]||'');
     // Name format is typically "EventName — Description", extract event part
     const eventArr=f[cfg.fids.event];
-    // Tour Event is a linked record field returning [{id, name}] objects directly
-    const event=Array.isArray(eventArr)&&eventArr.length>0
-      ?(typeof eventArr[0]==='object'&&eventArr[0].name?eventArr[0].name:String(eventArr[0]))
-      :(recName.split(' — ')[0]||'Show');
+    // Tour Event returns flat record ID strings - extract event name from Name formula instead
+    // Name format: "EventName — Description (Version)"
+    const event=recName.split(' — ')[0]||'Show';
     const desc=f[cfg.fids.desc]||'—';
     const vendor='';
     const status=f[cfg.fids.status]?.name||f[cfg.fids.status]||'';
