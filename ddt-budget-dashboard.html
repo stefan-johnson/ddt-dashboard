@@ -1322,8 +1322,8 @@ function buildOverview(){
 
   // Agent rows — use view-aware values
   const agentRows=tAgentNSA>0&&tAgentROW>0
-    ?[['Agent - TEAM (NSA)',D(val(tAgentNSA,tdAgentNSA))],['Agent - TEAM (ROW)',D(val(tAgentROW,tdAgentROW))]]
-    :[['Agent - TEAM',D(val(tAgent,tdAgent))]];
+    ?[['Agent (NSA)',D(val(tAgentNSA,tdAgentNSA))],['Agent (ROW)',D(val(tAgentROW,tdAgentROW))]]
+    :[['Agent',D(val(tAgent,tdAgent))]];
 
   // Show count — update based on view
   const tdShowCount=tourEvents.filter(e=>{
@@ -1386,7 +1386,7 @@ function buildOverview(){
 
   document.getElementById('ov-kpis-row1').innerHTML=
     feesCard+
-    expCardV('comm','','Commission',tCm,tdCm,[['Management - IFW',D(val(tMgmt,tdMgmt))],...agentRows])+
+    expCardV('comm','','Commission',tCm,tdCm,[['Management',D(val(tMgmt,tdMgmt))],...agentRows])+
     expCardV('alloc','','Allocations',tAl,tdAl,[['Marketing',D(val(tMkt,tdMkt))],['Salary',D(val(tSal,tdSal))],['Ops',D(val(tOps,tdOps))]])+
     expCardV('costs','','Tour costs',tCo,tdCo,[['Flights',D(val(tFl,tdFl))],['Hotels',D(val(tHt,tdHt))],['Wages',D(val(tWg,tdWg))],['Production',D(val(tPr,tdPr))],['Ground transport',D(val(tGt,tdGt))],['Media',D(val(tMd,tdMd))],['Misc',D(val(tMs,tdMs))]]);
 
@@ -1692,7 +1692,7 @@ function buildDrill(){
   const v=selVersion, c=compute(v,ddTarget);
   const lname=v.name||v['Name']||tourLegs.find(l=>l.id===selLegId)?.name||'—';
   const legRegion=tourLegs.find(l=>l.id===selLegId)?.region||'';
-  const agentLabel=(legRegion==='NA'||legRegion==='SA')?'Agent - TEAM (NSA)':'Agent - TEAM (ROW)';
+  const agentLabel=(legRegion==='NA'||legRegion==='SA')?'Agent (NSA)':'Agent (ROW)';
   const isLive=v._isLive!==false;
   const at=c.margin>=ddTarget;
 
@@ -1727,7 +1727,7 @@ function buildDrill(){
   document.getElementById('dd-pnl').innerHTML=`
     <tr><td class="pnl-name">Gross fee</td><td class="pnl-pct">—</td><td class="pnl-amt">${D(c.gross)}</td></tr>
     <tr><td class="pnl-name">Commission (subtotal)</td><td class="pnl-pct">${P(c.cp)}</td><td class="pnl-amt neg">-${D(c.comm)}</td></tr>
-    <tr><td class="pnl-indent">— Management - IFW</td><td class="pnl-pct">${P(c.mgmt)}</td><td class="pnl-amt">-${D(c.mgmtComm)}</td></tr>
+    <tr><td class="pnl-indent">— Management</td><td class="pnl-pct">${P(c.mgmt)}</td><td class="pnl-amt">-${D(c.mgmtComm)}</td></tr>
     <tr><td class="pnl-indent">— ${agentLabel}</td><td class="pnl-pct">${P(c.agent)}</td><td class="pnl-amt">-${D(c.agentComm)}</td></tr>
     <tr><td class="pnl-name">Allocations (subtotal)</td><td class="pnl-pct">${P(c.ap)}</td><td class="pnl-amt neg">-${D(c.alloc)}</td></tr>
     <tr><td class="pnl-indent">— Marketing</td><td class="pnl-pct">${P(c.mp)}</td><td class="pnl-amt">-${D(c.mktAlloc)}</td></tr>
@@ -1868,7 +1868,8 @@ async function loadCatDetail(i,body){
     const formula=encodeURIComponent(`FIND("${legName}",{${legFieldName}})`);
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
 
-    console.log('[drill] legId:',legId,'legName:',legName,'filtered recs:',legRecs.length);
+    console.log('[drill] filtered recs:',legRecs.length);
+    if(legRecs.length>0) console.log('[drill] sample record fields:',JSON.stringify(legRecs[0].fields).slice(0,300));
 
     loadDiv.remove();
     if(!legRecs.length){
