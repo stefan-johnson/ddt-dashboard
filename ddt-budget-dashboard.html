@@ -1623,12 +1623,10 @@ function buildDrillControls(){
 }
 
 function buildShowSelect(lid){
-  // Filter tourEvents to those linked to this leg
   const events=tourEvents.filter(e=>{
     const tl=e.fields?.['Tour Leg'];
-    if(!tl)return false;
-    if(Array.isArray(tl))return tl.includes(lid)||tl.some(x=>x?.id===lid);
-    return false;
+    if(!tl||!Array.isArray(tl))return false;
+    return tl.some(x=>(typeof x==='object'?x.id:x)===lid);
   }).map(e=>({
     id:e.id,
     name:e.fields?.['Event Name']||e.id
@@ -1892,17 +1890,17 @@ async function loadCatDetail(i,body){
   try{
     const legId=selLegId;
     const legName=tourLegs.find(l=>l.id===legId)?.name||'';
-    const legFieldName='Tour Leg';
     const fieldIds=Object.values(cfg.fids);
 
     // Build filter: by leg, or by specific show if selected
     let formula;
     if(selShowId&&selShowId!=='__all__'){
       const showName=document.getElementById('dd-show-select').selectedOptions[0]?.text||'';
-      // Filter by event name — works for all tables
-      formula=encodeURIComponent(`FIND("${showName}",{Tour Event})`);
+      // Each table uses a different event field name
+      const evField=configKey==='Tour Costs'?'Tour Event':'Event';
+      formula=encodeURIComponent(`FIND("${showName}",ARRAYJOIN({${evField}}))`);
     }else{
-      // Filter by leg name using ARRAYJOIN to handle lookup fields
+      // Filter by leg name — Tour Leg is a lookup field; use ARRAYJOIN to convert to string
       formula=encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
     }
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
@@ -2091,12 +2089,11 @@ function renderRecord(r,cfg,catKey){
     const eventName=parts.length>=2?parts.slice(1,-2).join(' '):recName;
     label=`${eventName} · ${nights} night${nights===1?'':'s'}`;
   }else if(catKey==='Wages'){
-    // Name: "EventName — PersonName"
     const eventName=recName.split(' — ')[0]||recName;
     const days=f[cfg.fids.days]||'';
     const rate=Number(Array.isArray(f[cfg.fids.rate])?f[cfg.fids.rate][0]:(f[cfg.fids.rate]||0));
     const totalPd=Number(f[cfg.fids.pd]||0);
-    const pdStr=totalPd>0?` + ${D(totalPd)} PD`:'';
+    const pdStr=totalPd>0?` + $60/day PD`:'';
     label=`${eventName} · ${days} days @ ${D(rate)}/day${pdStr}`;
   }
   return`<div class="drill-record-row">
