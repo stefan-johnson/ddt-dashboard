@@ -748,19 +748,33 @@ async function loadData(){
 
     setLoad(80,'Loading show schedule');
     try{
-      const evr=await fetchAll('Tour Events',[
-        'Event Name','Date','Tour Leg','Status',
-        'Fee Master (USD)','MGMT 17.5%','Agent 10%',
-        'Marketing 5%','Salary 5%','Ops 4.2%','WHT $',
-        'Wages Budget','Flights Budget','Hotels Budget',
-        'Production Budget','Ground Transport Budget','Media Budget','Misc Budget',
-        'Total Tour Costs Budget',
-        'Wages Actual','Flights Actual','Hotels Actual',
-        'Production Actual','Ground Transport Actual','Media Actual','Misc Actual',
-        'Total Tour Costs Actual',
+      // Fetch basic fields by name
+      const evr=await fetchAll('Tour Events',['Event Name','Date','Tour Leg','Status']);
+      // Fetch financial fields by ID to ensure rollups/formulas are included
+      const evrFin=await fetchAllById('tblWnNiUGlqjzjpu1',[
+        'fldFNwcgAaKhAVMPh', // Fee Master (USD)
+        'fldXooa7EZNdKG4ey', // Flights Budget
+        'flduAGj6Jh9lgKAjL', // Hotels Budget
+        'fldlvabfrLJTwhp8o', // Wages Budget
+        'fldVlJxP9ztFXd4rh', // Production Budget
+        'fldz8Ru0yjSU7SgmP', // Ground Transport Budget
+        'fldik109s0RCZkJmh', // Media Budget
+        'fldZpzMScbDvLy6vU', // Misc Budget
+        'fldxbIbz6khfhzJ0m', // Flights Actual
+        'fldpbr3YlD4XV2zBM', // Hotels Actual
+        'fld0QH0wsxWkZaURS', // Wages Actual
+        'fldiiaZuqLBhkqnbn', // Production Actual
+        'flduN7pNLGVufCie4', // Ground Transport Actual
+        'fldYZIONhfHhVEJd7', // Media Actual
+        'fldTOW0r0hN32N2bV', // Misc Actual
       ]);
-      tourEvents=evr;
-    }catch(e){ tourEvents=[]; }
+      // Merge financial data into base records by record ID
+      const finMap=new Map(evrFin.map(r=>[r.id,r.fields||{}]));
+      tourEvents=evr.map(r=>({
+        ...r,
+        fields:{...r.fields,...(finMap.get(r.id)||{})}
+      }));
+    }catch(e){ tourEvents=[]; console.warn('tourEvents fetch error:',e); }
 
     setLoad(100,'Ready');
     await new Promise(r=>setTimeout(r,200));
@@ -1834,24 +1848,24 @@ function buildDrill(){
   let c;
   if(selShowIds.size>0){
     const filteredEvs=tourEvents.filter(e=>selShowIds.has(e.id));
-    console.log('[filter] selShowIds:',selShowIds.size,'filteredEvs:',filteredEvs.length,'first fields keys:',filteredEvs[0]?Object.keys(filteredEvs[0].fields||{}).slice(0,5):[]);
     const ev=filteredEvs.reduce((acc,e)=>{
       const f=e.fields||{};
-      acc['Total Fee (USD)']=(acc['Total Fee (USD)']||0)+(f['Fee Master (USD)']||0);
-      acc['Flights Budget']=(acc['Flights Budget']||0)+(f['Flights Budget']||0);
-      acc['Hotels Budget']=(acc['Hotels Budget']||0)+(f['Hotels Budget']||0);
-      acc['Wages Budget']=(acc['Wages Budget']||0)+(f['Wages Budget']||0);
-      acc['Production Budget']=(acc['Production Budget']||0)+(f['Production Budget']||0);
-      acc['Ground Transport Budget']=(acc['Ground Transport Budget']||0)+(f['Ground Transport Budget']||0);
-      acc['Media Budget']=(acc['Media Budget']||0)+(f['Media Budget']||0);
-      acc['Misc Budget']=(acc['Misc Budget']||0)+(f['Misc Budget']||0);
-      acc['Flights Actual']=(acc['Flights Actual']||0)+(f['Flights Actual']||0);
-      acc['Hotels Actual']=(acc['Hotels Actual']||0)+(f['Hotels Actual']||0);
-      acc['Wages Actual']=(acc['Wages Actual']||0)+(f['Wages Actual']||0);
-      acc['Production Actual']=(acc['Production Actual']||0)+(f['Production Actual']||0);
-      acc['Ground Transport Actual']=(acc['Ground Transport Actual']||0)+(f['Ground Transport Actual']||0);
-      acc['Media Actual']=(acc['Media Actual']||0)+(f['Media Actual']||0);
-      acc['Misc Actual']=(acc['Misc Actual']||0)+(f['Misc Actual']||0);
+      // Financial fields stored by field ID (from fetchAllById merge)
+      acc['Total Fee (USD)']=(acc['Total Fee (USD)']||0)+(f['fldFNwcgAaKhAVMPh']||f['Fee Master (USD)']||0);
+      acc['Flights Budget']=(acc['Flights Budget']||0)+(f['fldXooa7EZNdKG4ey']||f['Flights Budget']||0);
+      acc['Hotels Budget']=(acc['Hotels Budget']||0)+(f['flduAGj6Jh9lgKAjL']||f['Hotels Budget']||0);
+      acc['Wages Budget']=(acc['Wages Budget']||0)+(f['fldlvabfrLJTwhp8o']||f['Wages Budget']||0);
+      acc['Production Budget']=(acc['Production Budget']||0)+(f['fldVlJxP9ztFXd4rh']||f['Production Budget']||0);
+      acc['Ground Transport Budget']=(acc['Ground Transport Budget']||0)+(f['fldz8Ru0yjSU7SgmP']||f['Ground Transport Budget']||0);
+      acc['Media Budget']=(acc['Media Budget']||0)+(f['fldik109s0RCZkJmh']||f['Media Budget']||0);
+      acc['Misc Budget']=(acc['Misc Budget']||0)+(f['fldZpzMScbDvLy6vU']||f['Misc Budget']||0);
+      acc['Flights Actual']=(acc['Flights Actual']||0)+(f['fldxbIbz6khfhzJ0m']||f['Flights Actual']||0);
+      acc['Hotels Actual']=(acc['Hotels Actual']||0)+(f['fldpbr3YlD4XV2zBM']||f['Hotels Actual']||0);
+      acc['Wages Actual']=(acc['Wages Actual']||0)+(f['fld0QH0wsxWkZaURS']||f['Wages Actual']||0);
+      acc['Production Actual']=(acc['Production Actual']||0)+(f['fldiiaZuqLBhkqnbn']||f['Production Actual']||0);
+      acc['Ground Transport Actual']=(acc['Ground Transport Actual']||0)+(f['flduN7pNLGVufCie4']||f['Ground Transport Actual']||0);
+      acc['Media Actual']=(acc['Media Actual']||0)+(f['fldYZIONhfHhVEJd7']||f['Media Actual']||0);
+      acc['Misc Actual']=(acc['Misc Actual']||0)+(f['fldTOW0r0hN32N2bV']||f['Misc Actual']||0);
       return acc;
     },{});
     // Inherit commission/alloc rates from leg
