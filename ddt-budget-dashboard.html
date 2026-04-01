@@ -1868,8 +1868,22 @@ function buildDrill(){
       acc['Misc Actual']=(acc['Misc Actual']||0)+(f['fldTOW0r0hN32N2bV']||f['Misc Actual']||0);
       return acc;
     },{});
-    // Inherit commission/alloc rates from leg
-    const merged={...v,...ev};
+    // Inherit commission/alloc rates from leg, but null out pre-computed totals
+    // so compute() recalculates from the filtered per-show budgets
+    const merged={
+      ...v,...ev,
+      'Total Tour Costs Budget':null,
+      'Total Tour Costs Actual':null,
+      'Total Commissions':null,
+      'Total Allocations':null,
+      'Net Profit (Budget)':null,
+      'Net Profit (Actual)':null,
+      'Margin % (Budget)':null,
+      'Margin % (Actual)':null,
+      'Total WHT':null,
+      'Net Profit After WHT (Budget)':null,
+      'Net Profit After WHT (Actual)':null,
+    };
     c=compute(merged,ddTarget);
   }else{
     c=compute(v,ddTarget);
