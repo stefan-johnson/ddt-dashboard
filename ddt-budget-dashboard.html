@@ -1869,9 +1869,13 @@ function buildDrill(){
       return acc;
     },{});
     // Inherit commission/alloc rates from leg, but null out pre-computed totals
-    // so compute() recalculates from the filtered per-show budgets
+    // so compute() recalculates from the filtered per-show budgets.
+    // Also null 'Gross Fee (USD)' so compute() uses ev['Total Fee (USD)'] (filtered sum)
+    // rather than the stale leg-level value set during loadData() normalisation.
+    // Keep 'Total WHT' from the leg (it is a leg-level field, not per-show).
     const merged={
       ...v,...ev,
+      'Gross Fee (USD)':null,
       'Total Tour Costs Budget':null,
       'Total Tour Costs Actual':null,
       'Total Commissions':null,
@@ -1880,7 +1884,6 @@ function buildDrill(){
       'Net Profit (Actual)':null,
       'Margin % (Budget)':null,
       'Margin % (Actual)':null,
-      'Total WHT':null,
       'Net Profit After WHT (Budget)':null,
       'Net Profit After WHT (Actual)':null,
     };
