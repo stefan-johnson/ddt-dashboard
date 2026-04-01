@@ -165,7 +165,7 @@ nav{display:flex;gap:2px;}
 .insight-banner.red{border-left:2px solid var(--red600);background:var(--red50);color:var(--red800);}
 
 /* DRILL CONTROLS */
-.drill-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.drill-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:52px;z-index:40;background:var(--g50);padding:10px 0;margin:0 0 16px;border-bottom:0.5px solid var(--g100);}
 .drill-leg{font-family:var(--fu);font-weight:bold;font-size:14px;}
 select{font-family:var(--fu);font-size:11px;color:var(--g600);background:var(--white);border:0.5px solid var(--g100);border-radius:6px;padding:5px 8px;outline:none;cursor:pointer;}
 select:focus{border-color:var(--g400);}
@@ -1666,6 +1666,7 @@ function buildShowSelect(lid){
     .sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name));
 
   selShowIds=new Set();
+  window._showsNone=false;
   window._showEvents=events;
   _updateShowLabel();
 
@@ -1687,6 +1688,7 @@ function _updateShowLabel(){
   const label=document.getElementById('dd-show-label');
   if(!label)return;
   const events=window._showEvents||[];
+  if(window._showsNone){label.textContent='No shows';return;}
   if(!selShowIds.size){label.textContent='All shows';return;}
   if(selShowIds.size===1){
     const id=[...selShowIds][0];
@@ -1699,15 +1701,18 @@ function _updateShowLabel(){
 function toggleAllShows(){
   const events=window._showEvents||[];
   const allChk=document.getElementById('show-all-chk');
-  // If all-shows is now checked, clear individual selections
-  if(allChk&&allChk.checked){
-    selShowIds=new Set();
-    events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=true;});
+  if(selShowIds.size===0&&!window._showsNone){
+    // Currently "all selected" — clicking All deselects everything
+    window._showsNone=true;
+    selShowIds=new Set(); // keep empty but flag none
+    events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=false;});
+    if(allChk)allChk.checked=false;
   }else{
-    // All unchecked — no valid state, revert to all
-    allChk.checked=true;
+    // Was in partial or none state — clicking All selects everything
+    window._showsNone=false;
     selShowIds=new Set();
     events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=true;});
+    if(allChk)allChk.checked=true;
   }
   _updateShowLabel();
   _onShowFilterChanged();
@@ -1718,6 +1723,8 @@ function toggleShow(id){
   const chk=document.getElementById('show-'+id);
   const allChk=document.getElementById('show-all-chk');
   const isNowChecked=chk?chk.checked:false;
+
+  window._showsNone=false; // any individual toggle clears the none state
 
   if(selShowIds.size===0){
     // Was "all selected" — unchecking means select all EXCEPT this one
@@ -1748,13 +1755,17 @@ function onShowFilter(){}
 
 function _onShowFilterChanged(){
   buildDrill();
+  // Reset drill detail cache so next open re-fetches with current show filter,
+  // but don't close currently open bodies — user may want to compare.
   document.querySelectorAll('.cost-body').forEach(b=>{
     b.dataset.loaded='';
-    b.classList.remove('open');
-    const i=b.id.replace('cat-','');
-    const chev=document.getElementById('chev-'+i);
-    if(chev)chev.classList.remove('open');
-    b.querySelectorAll('.drill-wrap,.drill-no-records').forEach(el=>el.remove());
+    // If already open, reload detail immediately with new filter
+    if(b.classList.contains('open')){
+      b.querySelectorAll('.drill-wrap,.drill-no-records').forEach(el=>el.remove());
+      const i=b.id.replace('cat-','');
+      b.dataset.loaded='1';
+      loadCatDetail(parseInt(i),b);
+    }
   });
 }
 
@@ -1869,13 +1880,9 @@ function buildDrill(){
       return acc;
     },{});
     // Inherit commission/alloc rates from leg, but null out pre-computed totals
-    // so compute() recalculates from the filtered per-show budgets.
-    // Also null 'Gross Fee (USD)' so compute() uses ev['Total Fee (USD)'] (filtered sum)
-    // rather than the stale leg-level value set during loadData() normalisation.
-    // Keep 'Total WHT' from the leg (it is a leg-level field, not per-show).
+    // so compute() recalculates from the filtered per-show budgets
     const merged={
       ...v,...ev,
-      'Gross Fee (USD)':null,
       'Total Tour Costs Budget':null,
       'Total Tour Costs Actual':null,
       'Total Commissions':null,
@@ -1884,6 +1891,7 @@ function buildDrill(){
       'Net Profit (Actual)':null,
       'Margin % (Budget)':null,
       'Margin % (Actual)':null,
+      'Total WHT':null,
       'Net Profit After WHT (Budget)':null,
       'Net Profit After WHT (Actual)':null,
     };
@@ -1919,7 +1927,7 @@ function buildDrill(){
   document.getElementById('dd-kpis').innerHTML=`
     <div class="kpi-card"><div class="kpi-label">Gross fee</div><div class="kpi-value">${D(c.gross)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Tour costs (budget)</div><div class="kpi-value">${D(c.costs)}</div>${invoicedPct?`<div class="kpi-sub">${invoicedPct}</div>`:''}</div>
-    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">Net profit</div><div class="kpi-value ${at?'green':'red'}">${D(c.net)}</div></div>
+    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">${c.net<0?'Loss':'Net profit'}</div><div class="kpi-value ${at?'green':'red'}">${D(c.net)}</div></div>
     <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">Margin</div><div class="kpi-value ${at?'green':'red'}">${P(c.margin)}</div></div>
     <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Addl. revenue for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="kpi-sub">in additional fees</div></div>
     <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Cost saving for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="kpi-sub">holding revenue constant</div></div>
