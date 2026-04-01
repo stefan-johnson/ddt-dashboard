@@ -1701,14 +1701,13 @@ function _updateShowLabel(){
 function toggleAllShows(){
   const events=window._showEvents||[];
   const allChk=document.getElementById('show-all-chk');
-  if(selShowIds.size===0&&!window._showsNone){
-    // Currently "all selected" — clicking All deselects everything
+  if(!window._showsNone&&selShowIds.size===0){
+    // Currently all selected — deselect everything
     window._showsNone=true;
-    selShowIds=new Set(); // keep empty but flag none
     events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=false;});
     if(allChk)allChk.checked=false;
   }else{
-    // Was in partial or none state — clicking All selects everything
+    // Currently none or partial — select all
     window._showsNone=false;
     selShowIds=new Set();
     events.forEach(e=>{const c=document.getElementById('show-'+e.id);if(c)c.checked=true;});
@@ -1724,10 +1723,16 @@ function toggleShow(id){
   const allChk=document.getElementById('show-all-chk');
   const isNowChecked=chk?chk.checked:false;
 
-  window._showsNone=false; // any individual toggle clears the none state
-
-  if(selShowIds.size===0){
-    // Was "all selected" — unchecking means select all EXCEPT this one
+  if(window._showsNone){
+    // Nothing selected — checking one show selects just that show
+    if(isNowChecked){
+      window._showsNone=false;
+      selShowIds=new Set([id]);
+      // All others remain unchecked (they already are)
+    }
+    // Unchecking in none state — no-op
+  }else if(selShowIds.size===0){
+    // All selected — unchecking one means select all except this one
     if(!isNowChecked){
       events.forEach(e=>{if(e.id!==id)selShowIds.add(e.id);});
     }
@@ -1737,14 +1742,14 @@ function toggleShow(id){
   }
 
   // If all individually selected, revert to "all" state
-  if(selShowIds.size===events.length)selShowIds=new Set();
+  if(!window._showsNone&&selShowIds.size===events.length){selShowIds=new Set();}
 
-  // Sync all checkboxes
-  const allSelected=selShowIds.size===0;
+  // Sync checkboxes
+  const allSelected=!window._showsNone&&selShowIds.size===0;
   if(allChk)allChk.checked=allSelected;
   events.forEach(e=>{
     const c=document.getElementById('show-'+e.id);
-    if(c)c.checked=allSelected||selShowIds.has(e.id);
+    if(c)c.checked=!window._showsNone&&(selShowIds.size===0||selShowIds.has(e.id));
   });
 
   _updateShowLabel();
@@ -1755,16 +1760,15 @@ function onShowFilter(){}
 
 function _onShowFilterChanged(){
   buildDrill();
-  // Reset drill detail cache so next open re-fetches with current show filter,
-  // but don't close currently open bodies — user may want to compare.
+  // Reset drill detail cache. If a body is already open, reload it immediately
+  // with the new filter — don't close it.
   document.querySelectorAll('.cost-body').forEach(b=>{
     b.dataset.loaded='';
-    // If already open, reload detail immediately with new filter
     if(b.classList.contains('open')){
-      b.querySelectorAll('.drill-wrap,.drill-no-records').forEach(el=>el.remove());
-      const i=b.id.replace('cat-','');
+      b.querySelectorAll('.drill-wrap,.drill-no-records,[style*="No records"]').forEach(el=>el.remove());
+      const i=parseInt(b.id.replace('cat-',''));
       b.dataset.loaded='1';
-      loadCatDetail(parseInt(i),b);
+      loadCatDetail(i,b);
     }
   });
 }
@@ -1855,10 +1859,10 @@ function buildDrill(){
   if(!selVersion)return;
   const v=selVersion;
 
-  // If shows are filtered, compute from selected Tour Events instead of the whole leg
+  // If shows are filtered (or none selected), compute from selected Tour Events instead of the whole leg
   let c;
-  if(selShowIds.size>0){
-    const filteredEvs=tourEvents.filter(e=>selShowIds.has(e.id));
+  if(window._showsNone||selShowIds.size>0){
+    const filteredEvs=window._showsNone?[]:tourEvents.filter(e=>selShowIds.has(e.id));
     const ev=filteredEvs.reduce((acc,e)=>{
       const f=e.fields||{};
       // Financial fields stored by field ID (from fetchAllById merge)
@@ -1880,9 +1884,12 @@ function buildDrill(){
       return acc;
     },{});
     // Inherit commission/alloc rates from leg, but null out pre-computed totals
-    // so compute() recalculates from the filtered per-show budgets
+    // so compute() recalculates from the filtered per-show budgets.
+    // Null 'Gross Fee (USD)' so compute() falls through to ev['Total Fee (USD)'] (filtered sum).
+    // Keep 'Total WHT' from leg — it is a leg-level field, not per-show.
     const merged={
       ...v,...ev,
+      'Gross Fee (USD)':null,
       'Total Tour Costs Budget':null,
       'Total Tour Costs Actual':null,
       'Total Commissions':null,
@@ -1891,7 +1898,6 @@ function buildDrill(){
       'Net Profit (Actual)':null,
       'Margin % (Budget)':null,
       'Margin % (Actual)':null,
-      'Total WHT':null,
       'Net Profit After WHT (Budget)':null,
       'Net Profit After WHT (Actual)':null,
     };
