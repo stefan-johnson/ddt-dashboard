@@ -736,22 +736,42 @@ async function loadData(){
     });
 
     setLoad(50,'Loading budget versions');
-    // Budget Versions — snapshot records only (no Current)
-    const BV_FIELDS=[
-      'Name','Version','Version Date','Version Notes','Tour Leg',
-      'Gross Fee (USD)',
-      'Management Commission %','Agent Commission %',
-      'Marketing Alloc %','Salary Alloc %','Ops Alloc %',
-      'Flights Budget','Hotels Budget','Wages Budget','Production Budget',
-      'Ground Transport Budget','Media Budget','Misc Budget',
-      'Total Tour Costs Budget',
-      'WHT (USD)','Target Margin %',
-      'Net Profit (Budget)','Margin % (Budget)',
-      'Agent Commission (USD)','Management Commission (USD)',
-      'Total Alloc %',
-    ];
-    const vr=await fetchAll('Budget Versions',BV_FIELDS);
-    allVersions=vr.map(r=>({id:r.id,...r.fields}));
+    // Budget Versions — fetch by field ID to be immune to field renames
+    const BV_FIELD_MAP={
+      'fldbUJnN0LyioTxAy':'Name',
+      'fldvL0lh33xnn1Ywm':'Version',
+      'fldoWVevhkMKjnVza':'Version Date',
+      'fldQEnqdMj1MYgt4y':'Version Notes',
+      'fldsnTQnJkTjqa3tD':'Tour Leg',
+      'fldB6oqGf4iAbgugM':'Gross Fee (USD)',
+      'fldskwlfNusmnwJrA':'Management Commission %',
+      'flduXhrRpl2PB9aum':'Agent Commission %',
+      'fldQ5Pnem8StcWLmG':'Marketing Alloc %',
+      'fldwjVee8fQaau0Lm':'Salary Alloc %',
+      'fldUQesAqYfRDoaqs':'Ops Alloc %',
+      'fldZMW3dQGWafB5J6':'FLIGHTS: Total Budget',
+      'fldTBC1R9nc7CUXv5':'HOTELS: Total Budget',
+      'fldMD0FBzuAf2MinX':'WAGES: Total Budget',
+      'fldmArT6Ns1qe5y9F':'PRODUCTION: Total Budget',
+      'fldhQHNsXEpOpVP3a':'MISC: Total Budget',
+      'fldLWNCFAsG6ujSfu':'GROUND: Total Budget',
+      'fld2vL613ngC6Nrht':'MEDIA: Total Budget',
+      'fldJQut2cjxX6pzIq':'Total Tour Costs Budget',
+      'fldDp70VQunMFGicy':'WHT (USD)',
+      'fldDlXNRI0oyrJxFs':'Target Margin %',
+      'fldkGtC7Nreyt92U6':'Net Profit (Budget)',
+      'fldVhXZmSDKfhSNwa':'Margin % (Budget)',
+      'fldAzQs7x0c1KT9lr':'Agent Commission (USD)',
+      'fldr5afY0WlodqZO7':'Management Commission (USD)',
+      'fldEu5RB5uBi6GXAP':'Total Alloc %',
+    };
+    const vr=await fetchAllById('tblSq76FjEHqKLCpB',Object.keys(BV_FIELD_MAP));
+    allVersions=vr.map(r=>{
+      const raw=r.fields||{};
+      const mapped={};
+      Object.entries(BV_FIELD_MAP).forEach(([id,name])=>{if(raw[id]!==undefined)mapped[name]=raw[id];});
+      return{id:r.id,...mapped};
+    });
 
     setLoad(80,'Loading show schedule');
     try{
