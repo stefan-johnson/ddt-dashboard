@@ -219,9 +219,9 @@ select:focus{border-color:var(--g400);}
 .drill-chev.open{transform:rotate(90deg);}
 
 /* COST BREAKDOWN */
-.cost-cat-row{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;align-items:center;padding:9px var(--cp);background:var(--g50);border-bottom:0.5px solid var(--g100);cursor:pointer;}
+.cost-cat-row{display:grid;grid-template-columns:1fr 96px 96px 96px 120px 130px;align-items:center;padding:9px var(--cp);background:var(--g50);border-bottom:0.5px solid var(--g100);cursor:pointer;}
 .cost-cat-row:hover{background:var(--g100);}
-.cost-cat-name{display:flex;align-items:center;gap:8px;font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
+.cost-cat-name{display:flex;align-items:center;gap:4px;font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
 .cost-chevron{font-size:8px;color:var(--g400);transition:transform .15s;user-select:none;}
 .cost-chevron.open{transform:rotate(90deg);}
 .cost-cat-num{font-family:var(--fd);font-size:12px;text-align:right;color:var(--black);font-weight:bold;}
@@ -229,14 +229,14 @@ select:focus{border-color:var(--g400);}
 .cost-body.open{display:block;}
 .version-notes{padding:8px var(--cp) 8px 40px;border-bottom:0.5px dashed var(--g100);border-left:2px solid var(--blue600);background:var(--blue50);font-size:8.5px;color:var(--g600);line-height:1.5;}
 .version-notes-tag{font-family:var(--fu);font-size:7px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--blue600);margin-bottom:2px;}
-.cost-col-header{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;padding:6px var(--cp) 6px 40px;border-bottom:0.5px solid var(--g100);background:var(--g50);}
+.cost-col-header{display:grid;grid-template-columns:1fr 96px 96px 96px 120px 130px;padding:6px var(--cp) 6px 40px;border-bottom:0.5px solid var(--g100);background:var(--g50);}
 .cost-col-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);text-align:right;}
 .cost-col-label:first-child{text-align:left;}
-.cost-coa-row{display:grid;grid-template-columns:1fr 110px 110px 100px 80px;align-items:center;padding:9px var(--cp) 9px 40px;border-bottom:0.5px solid var(--g100);}
+.cost-coa-row{display:grid;grid-template-columns:1fr 110px 110px;align-items:center;padding:9px var(--cp) 9px 40px;border-bottom:0.5px solid var(--g100);}
 .cost-coa-row:last-child{border-bottom:none;}
 .cost-coa-name{font-family:var(--fd);font-size:8.5px;color:var(--g600);}
 .cost-coa-num{font-family:var(--fd);font-size:8.5px;text-align:right;color:var(--g600);}
-.cost-totals{padding:10px var(--cp);display:grid;grid-template-columns:1fr 110px 110px 100px 80px;border-top:0.5px solid var(--g100);background:var(--g50);}
+.cost-totals{padding:10px var(--cp);display:grid;grid-template-columns:1fr 96px 96px 96px 120px 130px;align-items:center;border-top:0.5px solid var(--g100);background:var(--g50);}
 .cost-totals-label{font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
 .cost-totals-num{font-family:var(--fd);font-weight:bold;font-size:12px;text-align:right;color:var(--black);}
 .var-pos{color:var(--green600);}
@@ -403,15 +403,13 @@ select:focus{border-color:var(--g400);}
   /* Auth card */
   .auth-card{width:calc(100vw - 32px);padding:24px 20px;}
 
-  /* Cost breakdown — tighter columns, hide Status on mobile */
+  /* Cost breakdown — on mobile show Category + Budget + Actual only, hide locked/variance/pct */
   .cost-col-header,
   .cost-cat-row,
-  .cost-coa-row,
-  .cost-totals{grid-template-columns:1fr 72px 72px 72px;font-size:10px;}
-  .cost-col-header>*:last-child,
-  .cost-cat-row>*:last-child,
-  .cost-coa-row>*:last-child,
-  .cost-totals>*:last-child{display:none;}
+  .cost-totals{grid-template-columns:1fr 80px 80px !important;}
+  .cost-col-header>*:nth-child(n+4),
+  .cost-cat-row>*:nth-child(n+4),
+  .cost-totals>*:nth-child(n+4){display:none;}
   .cost-cat-num,.cost-coa-num,.cost-totals-num{font-size:11px;}
   .cost-totals-label{font-size:8px;}
 }
@@ -684,16 +682,25 @@ async function loadData(){
       'MGMT Commission %','Agent Commission %',
       'Marketing Alloc %','Salary Alloc %','Ops Alloc %',
       'Total Commissions','Total Allocations',
-      'Flights Budget','Hotels Budget','Wages Budget','Production Budget',
-      'Ground Transport Budget','Media Budget','Misc Budget',
-      'Total Tour Costs Budget',
-      'Flights Actual','Hotels Actual','Wages Actual','Production Actual',
-      'Ground Transport Actual','Media Actual','Misc Actual',
-      'Total Tour Costs Actual','Total Variance','Overall Invoiced %',
-      'Net Profit (Budget)',
-      'Margin % (Budget)',
-      'Total WHT',
-      'Net Profit After WHT (Budget)',
+      // Budget totals (renamed from e.g. "Flights Budget")
+      'FLIGHTS: Total Budget','HOTELS: Total Budget','WAGES: Total Budget',
+      'PRODUCTION: Total Budget','GROUND: Total Budget','MEDIA: Total Budget','MISC: Total Budget',
+      // Budget locked
+      'FLIGHTS: Budget (Locked)','HOTELS: Budget (Locked)','WAGES: Budget (Locked)',
+      'PRODUCTION: Budget (Locked)','GROUND: Budget (Locked)','MEDIA: Budget (Locked)','MISC: Budget (Locked)',
+      // Actual locked (renamed from e.g. "Flights Actual")
+      'FLIGHTS: Actual (Locked)','HOTELS: Actual (Locked)','WAGES: Actual (Locked)',
+      'PRODUCTION: Actual (Locked)','GROUND: Actual (Locked)','MEDIA: Actual (Locked)','MISC: Actual (Locked)',
+      // Budget pending
+      'FLIGHTS: Budget (Pending)','HOTELS: Budget (Pending)','WAGES: Budget (Pending)',
+      'PRODUCTION: Budget (Pending)','GROUND: Budget (Pending)','MEDIA: Budget (Pending)','MISC: Budget (Pending)',
+      // ALL TOUR COSTS aggregates
+      'ALL TOUR COSTS: Total Budget','ALL TOUR COSTS: Budget (Locked)',
+      'ALL TOUR COSTS: Actual (Locked)','ALL TOUR COSTS: Budget (Pending)',
+      // Totals and P&L
+      'Total Tour Costs Budget','Total Tour Costs Actual','Total Variance','Overall Invoiced %',
+      'Net Profit (Budget)','Margin % (Budget)',
+      'Total WHT','Net Profit After WHT (Budget)',
       'Target Margin %','Target Net Profit','Profit Gap',
       'Additional Revenue for Target','Cost Saving for Target',
       'Tour Events',
@@ -753,20 +760,20 @@ async function loadData(){
       // Fetch financial fields by ID to ensure rollups/formulas are included
       const evrFin=await fetchAllById('tblWnNiUGlqjzjpu1',[
         'fldFNwcgAaKhAVMPh', // Fee Master (USD)
-        'fldXooa7EZNdKG4ey', // Flights Budget
-        'flduAGj6Jh9lgKAjL', // Hotels Budget
-        'fldlvabfrLJTwhp8o', // Wages Budget
-        'fldVlJxP9ztFXd4rh', // Production Budget
-        'fldz8Ru0yjSU7SgmP', // Ground Transport Budget
-        'fldik109s0RCZkJmh', // Media Budget
-        'fldZpzMScbDvLy6vU', // Misc Budget
-        'fldxbIbz6khfhzJ0m', // Flights Actual
-        'fldpbr3YlD4XV2zBM', // Hotels Actual
-        'fld0QH0wsxWkZaURS', // Wages Actual
-        'fldiiaZuqLBhkqnbn', // Production Actual
-        'flduN7pNLGVufCie4', // Ground Transport Actual
-        'fldYZIONhfHhVEJd7', // Media Actual
-        'fldTOW0r0hN32N2bV', // Misc Actual
+        'fldC7hRs4pgdM1cpG', // FLIGHTS: Total Budget
+        'flduAGj6Jh9lgKAjL', // HOTELS: Total Budget
+        'fldlvabfrLJTwhp8o', // WAGES: Total Budget
+        'fldVlJxP9ztFXd4rh', // PRODUCTION: Total Budget
+        'fldz8Ru0yjSU7SgmP', // GROUND: Total Budget
+        'fldik109s0RCZkJmh', // MEDIA: Total Budget
+        'fldZpzMScbDvLy6vU', // MISC: Total Budget
+        'fldxbIbz6khfhzJ0m', // FLIGHTS: Actual (Locked)
+        'fldsjp3mJU41EYTkv', // HOTELS: Actual (Locked)
+        'fld0QH0wsxWkZaURS', // WAGES: Actual (Locked)
+        'fldxw8hskhMhRhSQ5', // PRODUCTION: Actual (Locked)
+        'fldcVHqaf2m7D7d8v', // GROUND: Actual (Locked)
+        'flds8WN094d1PURQH', // MEDIA: Actual (Locked)
+        'fldXrm00PPmpfNRSK', // MISC: Actual (Locked)
       ]);
       // Merge financial data into base records by record ID
       const finMap=new Map(evrFin.map(r=>[r.id,r.fields||{}]));
@@ -791,7 +798,6 @@ async function loadData(){
 }
 
 function compute(v,tgt){
-  // Primary values — read from Airtable formula fields where available
   const gross=v['Gross Fee (USD)']||v['Total Fee (USD)']||0;
   const mgmt=v['MGMT Commission %']??v['Management Commission %']??0.175;
   const agent=v['Agent Commission %']??0.10;
@@ -799,22 +805,59 @@ function compute(v,tgt){
   const mp=v['Marketing Alloc %']||0.05, sp=v['Salary Alloc %']||0.05, op=v['Ops Alloc %']||0.042;
   const ap=mp+sp+op;
 
-  // Cost budgets — 7 categories
-  const fl=v['Flights Budget']||0, ht=v['Hotels Budget']||0, wg=v['Wages Budget']||0;
-  const pr=v['Production Budget']||0, gt=v['Ground Transport Budget']||0;
-  const md=v['Media Budget']||0, ms=v['Misc Budget']||0;
-  const costs=v['Total Tour Costs Budget']||(fl+ht+wg+pr+gt+md+ms);
+  // Cost budgets — 7 categories (new names with old-name fallbacks)
+  const fl=v['FLIGHTS: Total Budget']||v['Flights Budget']||0;
+  const ht=v['HOTELS: Total Budget']||v['Hotels Budget']||0;
+  const wg=v['WAGES: Total Budget']||v['Wages Budget']||0;
+  const pr=v['PRODUCTION: Total Budget']||v['Production Budget']||0;
+  const gt=v['GROUND: Total Budget']||v['Ground Transport Budget']||0;
+  const md=v['MEDIA: Total Budget']||v['Media Budget']||0;
+  const ms=v['MISC: Total Budget']||v['Misc Budget']||0;
+  const costs=v['Total Tour Costs Budget']||v['ALL TOUR COSTS: Total Budget']||(fl+ht+wg+pr+gt+md+ms);
 
-  // Cost actuals — 7 categories
-  const flAct=v['Flights Actual']||0, htAct=v['Hotels Actual']||0, wgAct=v['Wages Actual']||0;
-  const prAct=v['Production Actual']||0, gtAct=v['Ground Transport Actual']||0;
-  const mdAct=v['Media Actual']||0, msAct=v['Misc Actual']||0;
-  const costsAct=v['Total Tour Costs Actual']||(flAct+htAct+wgAct+prAct+gtAct+mdAct+msAct);
+  // Cost actuals — 7 categories (now Actual (Locked))
+  const flAct=v['FLIGHTS: Actual (Locked)']||v['Flights Actual']||0;
+  const htAct=v['HOTELS: Actual (Locked)']||v['Hotels Actual']||0;
+  const wgAct=v['WAGES: Actual (Locked)']||v['Wages Actual']||0;
+  const prAct=v['PRODUCTION: Actual (Locked)']||v['Production Actual']||0;
+  const gtAct=v['GROUND: Actual (Locked)']||v['Ground Transport Actual']||0;
+  const mdAct=v['MEDIA: Actual (Locked)']||v['Media Actual']||0;
+  const msAct=v['MISC: Actual (Locked)']||v['Misc Actual']||0;
+  const costsAct=v['Total Tour Costs Actual']||v['ALL TOUR COSTS: Actual (Locked)']||(flAct+htAct+wgAct+prAct+gtAct+mdAct+msAct);
+
+  // Budget locked — 7 categories
+  const flLk=v['FLIGHTS: Budget (Locked)']||0;
+  const htLk=v['HOTELS: Budget (Locked)']||0;
+  const wgLk=v['WAGES: Budget (Locked)']||0;
+  const prLk=v['PRODUCTION: Budget (Locked)']||0;
+  const gtLk=v['GROUND: Budget (Locked)']||0;
+  const mdLk=v['MEDIA: Budget (Locked)']||0;
+  const msLk=v['MISC: Budget (Locked)']||0;
+  const costsLk=v['ALL TOUR COSTS: Budget (Locked)']||(flLk+htLk+wgLk+prLk+gtLk+mdLk+msLk);
+
+  // Budget pending — 7 categories
+  const flPd=v['FLIGHTS: Budget (Pending)']||0;
+  const htPd=v['HOTELS: Budget (Pending)']||0;
+  const wgPd=v['WAGES: Budget (Pending)']||0;
+  const prPd=v['PRODUCTION: Budget (Pending)']||0;
+  const gtPd=v['GROUND: Budget (Pending)']||0;
+  const mdPd=v['MEDIA: Budget (Pending)']||0;
+  const msPd=v['MISC: Budget (Pending)']||0;
+  const costsPd=v['ALL TOUR COSTS: Budget (Pending)']||(flPd+htPd+wgPd+prPd+gtPd+mdPd+msPd);
+
+  // % Locked — derived (Budget Locked / Total Budget)
+  const flPct=fl>0?flLk/fl:0;
+  const htPct=ht>0?htLk/ht:0;
+  const wgPct=wg>0?wgLk/wg:0;
+  const prPct=pr>0?prLk/pr:0;
+  const gtPct=gt>0?gtLk/gt:0;
+  const mdPct=md>0?mdLk/md:0;
+  const msPct=ms>0?msLk/ms:0;
+  const costsPct=costs>0?costsLk/costs:0;
 
   const wht=v['Total WHT']||v['WHT (USD)']||0;
   const t=tgt!=null?tgt:(v['Target Margin %']||0.30);
 
-  // P&L — read from Airtable formula fields, fall back to client-side calc
   const comm=v['Total Commissions']||(gross*cp);
   const mgmtComm=v['Management Commission (USD)']||(gross*mgmt);
   const agentComm=v['Agent Commission (USD)']||(gross*agent);
@@ -826,14 +869,12 @@ function compute(v,tgt){
   const margin=v['Margin % (Budget)']??(gross>0?net/gross:0);
   const marginAct=v['Margin % (Actual)']??(gross>0?netAct/gross:0);
 
-  // Planning targets — always recalculate from tgt (slider-driven)
   const tnet=gross*t;
   const gap=tnet-net;
   const denom=1-cp-ap-t;
   const addRev=gap>0&&denom!==0?gap/denom:0;
   const costSav=gap>0?gap:0;
 
-  // Reconciliation
   const invoicedPct=v['Overall Invoiced %']||(costs>0?costsAct/costs:0);
   const totalVariance=v['Total Variance']??(costs-costsAct);
 
@@ -842,6 +883,9 @@ function compute(v,tgt){
     comm,mgmtComm,agentComm,alloc,mktAlloc,salAlloc,opsAlloc,
     fl,ht,wg,pr,gt,md,ms,costs,
     flAct,htAct,wgAct,prAct,gtAct,mdAct,msAct,costsAct,
+    flLk,htLk,wgLk,prLk,gtLk,mdLk,msLk,costsLk,
+    flPd,htPd,wgPd,prPd,gtPd,mdPd,msPd,costsPd,
+    flPct,htPct,wgPct,prPct,gtPct,mdPct,msPct,costsPct,
     wht,t,net,netAct,margin,marginAct,tnet,gap,addRev,costSav,
     invoicedPct,totalVariance
   };
@@ -1829,13 +1873,13 @@ function onVersionChange(){
         _isLive:false,
         _legId:selLegId,
         // Live actuals always from Tour Legs
-        'Flights Actual':leg['Flights Actual'],
-        'Hotels Actual':leg['Hotels Actual'],
-        'Wages Actual':leg['Wages Actual'],
-        'Production Actual':leg['Production Actual'],
-        'Ground Transport Actual':leg['Ground Transport Actual'],
-        'Media Actual':leg['Media Actual'],
-        'Misc Actual':leg['Misc Actual'],
+        'FLIGHTS: Actual (Locked)':leg['FLIGHTS: Actual (Locked)'],
+        'HOTELS: Actual (Locked)':leg['HOTELS: Actual (Locked)'],
+        'WAGES: Actual (Locked)':leg['WAGES: Actual (Locked)'],
+        'PRODUCTION: Actual (Locked)':leg['PRODUCTION: Actual (Locked)'],
+        'GROUND: Actual (Locked)':leg['GROUND: Actual (Locked)'],
+        'MEDIA: Actual (Locked)':leg['MEDIA: Actual (Locked)'],
+        'MISC: Actual (Locked)':leg['MISC: Actual (Locked)'],
         'Total Tour Costs Actual':leg['Total Tour Costs Actual'],
         'Overall Invoiced %':leg['Overall Invoiced %'],
       };
@@ -1865,33 +1909,32 @@ function buildDrill(){
     const filteredEvs=window._showsNone?[]:tourEvents.filter(e=>selShowIds.has(e.id));
     const ev=filteredEvs.reduce((acc,e)=>{
       const f=e.fields||{};
-      // Financial fields stored by field ID (from fetchAllById merge)
       acc['Total Fee (USD)']=(acc['Total Fee (USD)']||0)+(f['fldFNwcgAaKhAVMPh']||f['Fee Master (USD)']||0);
-      acc['Flights Budget']=(acc['Flights Budget']||0)+(f['fldXooa7EZNdKG4ey']||f['Flights Budget']||0);
-      acc['Hotels Budget']=(acc['Hotels Budget']||0)+(f['flduAGj6Jh9lgKAjL']||f['Hotels Budget']||0);
-      acc['Wages Budget']=(acc['Wages Budget']||0)+(f['fldlvabfrLJTwhp8o']||f['Wages Budget']||0);
-      acc['Production Budget']=(acc['Production Budget']||0)+(f['fldVlJxP9ztFXd4rh']||f['Production Budget']||0);
-      acc['Ground Transport Budget']=(acc['Ground Transport Budget']||0)+(f['fldz8Ru0yjSU7SgmP']||f['Ground Transport Budget']||0);
-      acc['Media Budget']=(acc['Media Budget']||0)+(f['fldik109s0RCZkJmh']||f['Media Budget']||0);
-      acc['Misc Budget']=(acc['Misc Budget']||0)+(f['fldZpzMScbDvLy6vU']||f['Misc Budget']||0);
-      acc['Flights Actual']=(acc['Flights Actual']||0)+(f['fldxbIbz6khfhzJ0m']||f['Flights Actual']||0);
-      acc['Hotels Actual']=(acc['Hotels Actual']||0)+(f['fldpbr3YlD4XV2zBM']||f['Hotels Actual']||0);
-      acc['Wages Actual']=(acc['Wages Actual']||0)+(f['fld0QH0wsxWkZaURS']||f['Wages Actual']||0);
-      acc['Production Actual']=(acc['Production Actual']||0)+(f['fldiiaZuqLBhkqnbn']||f['Production Actual']||0);
-      acc['Ground Transport Actual']=(acc['Ground Transport Actual']||0)+(f['flduN7pNLGVufCie4']||f['Ground Transport Actual']||0);
-      acc['Media Actual']=(acc['Media Actual']||0)+(f['fldYZIONhfHhVEJd7']||f['Media Actual']||0);
-      acc['Misc Actual']=(acc['Misc Actual']||0)+(f['fldTOW0r0hN32N2bV']||f['Misc Actual']||0);
+      acc['FLIGHTS: Total Budget']=(acc['FLIGHTS: Total Budget']||0)+(f['fldC7hRs4pgdM1cpG']||0);
+      acc['HOTELS: Total Budget']=(acc['HOTELS: Total Budget']||0)+(f['flduAGj6Jh9lgKAjL']||0);
+      acc['WAGES: Total Budget']=(acc['WAGES: Total Budget']||0)+(f['fldlvabfrLJTwhp8o']||0);
+      acc['PRODUCTION: Total Budget']=(acc['PRODUCTION: Total Budget']||0)+(f['fldVlJxP9ztFXd4rh']||0);
+      acc['GROUND: Total Budget']=(acc['GROUND: Total Budget']||0)+(f['fldz8Ru0yjSU7SgmP']||0);
+      acc['MEDIA: Total Budget']=(acc['MEDIA: Total Budget']||0)+(f['fldik109s0RCZkJmh']||0);
+      acc['MISC: Total Budget']=(acc['MISC: Total Budget']||0)+(f['fldZpzMScbDvLy6vU']||0);
+      acc['FLIGHTS: Actual (Locked)']=(acc['FLIGHTS: Actual (Locked)']||0)+(f['fldxbIbz6khfhzJ0m']||0);
+      acc['HOTELS: Actual (Locked)']=(acc['HOTELS: Actual (Locked)']||0)+(f['fldsjp3mJU41EYTkv']||0);
+      acc['WAGES: Actual (Locked)']=(acc['WAGES: Actual (Locked)']||0)+(f['fld0QH0wsxWkZaURS']||0);
+      acc['PRODUCTION: Actual (Locked)']=(acc['PRODUCTION: Actual (Locked)']||0)+(f['fldxw8hskhMhRhSQ5']||0);
+      acc['GROUND: Actual (Locked)']=(acc['GROUND: Actual (Locked)']||0)+(f['fldcVHqaf2m7D7d8v']||0);
+      acc['MEDIA: Actual (Locked)']=(acc['MEDIA: Actual (Locked)']||0)+(f['flds8WN094d1PURQH']||0);
+      acc['MISC: Actual (Locked)']=(acc['MISC: Actual (Locked)']||0)+(f['fldXrm00PPmpfNRSK']||0);
       return acc;
     },{});
-    // Inherit commission/alloc rates from leg, but null out pre-computed totals
-    // so compute() recalculates from the filtered per-show budgets.
-    // Null 'Gross Fee (USD)' so compute() falls through to ev['Total Fee (USD)'] (filtered sum).
-    // Keep 'Total WHT' from leg — it is a leg-level field, not per-show.
     const merged={
       ...v,...ev,
       'Gross Fee (USD)':null,
       'Total Tour Costs Budget':null,
+      'ALL TOUR COSTS: Total Budget':null,
       'Total Tour Costs Actual':null,
+      'ALL TOUR COSTS: Actual (Locked)':null,
+      'ALL TOUR COSTS: Budget (Locked)':null,
+      'ALL TOUR COSTS: Budget (Pending)':null,
       'Total Commissions':null,
       'Total Allocations':null,
       'Net Profit (Budget)':null,
@@ -1900,6 +1943,10 @@ function buildDrill(){
       'Margin % (Actual)':null,
       'Net Profit After WHT (Budget)':null,
       'Net Profit After WHT (Actual)':null,
+      // Locked structure not available per-show — zero out so bars show 0
+      'FLIGHTS: Budget (Locked)':null,'HOTELS: Budget (Locked)':null,
+      'WAGES: Budget (Locked)':null,'PRODUCTION: Budget (Locked)':null,
+      'GROUND: Budget (Locked)':null,'MEDIA: Budget (Locked)':null,'MISC: Budget (Locked)':null,
     };
     c=compute(merged,ddTarget);
   }else{
@@ -1964,44 +2011,76 @@ function buildDrill(){
     <div class="pm-cell"><div class="pm-label">At target?</div><div class="pm-value ${at?'green':'red'}">${at?'Yes':'No'}</div></div>
   `;
 
-  // Cost breakdown — 4 categories
-  const tourCostsBudget=c.pr+c.gt+c.md+c.ms;
-  const tourCostsAct=c.prAct+c.gtAct+c.mdAct+c.msAct;
-  const cats=[
-    {key:'Flights',     budget:c.fl,          actual:c.flAct,     hasAct:c.flAct>0,     notes:v['Flights Notes']},
-    {key:'Hotels',      budget:c.ht,          actual:c.htAct,     hasAct:c.htAct>0,     notes:v['Hotels Notes']},
-    {key:'Wages',       budget:c.wg,          actual:c.wgAct,     hasAct:c.wgAct>0,     notes:v['Wages Notes']},
-    {key:'Tour Costs',  budget:tourCostsBudget,actual:tourCostsAct,hasAct:tourCostsAct>0,notes:null},
+  // Cost breakdown — 7 categories with locked structure
+  const catDefs=[
+    {key:'Flights',    budget:c.fl,  locked:c.flLk,  actual:c.flAct,  pct:c.flPct},
+    {key:'Hotels',     budget:c.ht,  locked:c.htLk,  actual:c.htAct,  pct:c.htPct},
+    {key:'Wages',      budget:c.wg,  locked:c.wgLk,  actual:c.wgAct,  pct:c.wgPct},
+    {key:'Production', budget:c.pr,  locked:c.prLk,  actual:c.prAct,  pct:c.prPct},
+    {key:'Ground',     budget:c.gt,  locked:c.gtLk,  actual:c.gtAct,  pct:c.gtPct},
+    {key:'Media',      budget:c.md,  locked:c.mdLk,  actual:c.mdAct,  pct:c.mdPct},
+    {key:'Misc',       budget:c.ms,  locked:c.msLk,  actual:c.msAct,  pct:c.msPct},
   ];
 
-  const totalActual=c.costsAct;
-  const totalVariance=totalActual>0?c.costs-totalActual:null;
+  const pctBar=(pct,color)=>`
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="flex:1;height:3px;background:var(--g100);border-radius:2px;overflow:hidden;min-width:40px">
+        <div style="width:${Math.min(pct*100,100).toFixed(1)}%;height:100%;background:${color};border-radius:2px"></div>
+      </div>
+      <span style="font-family:var(--fd);font-size:10px;color:var(--g600);min-width:32px;text-align:right">${(pct*100).toFixed(0)}%</span>
+    </div>`;
+
+  const colorDot=(color)=>`<span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;margin-right:4px"></span>`;
+
+  // Summary strip
+  const summaryHtml=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;border-bottom:0.5px solid var(--g100)">
+      <div style="padding:12px var(--cp);border-right:0.5px solid var(--g100)">
+        <div class="kpi-label" style="margin-bottom:4px">Total Budget</div>
+        <div style="font-family:var(--fd);font-weight:bold;font-size:14px">${D(c.costs)}</div>
+      </div>
+      <div style="padding:12px var(--cp);border-right:0.5px solid var(--g100)">
+        <div class="kpi-label" style="margin-bottom:4px">Budget (Locked)</div>
+        <div style="font-family:var(--fd);font-weight:bold;font-size:14px">${D(c.costsLk)}</div>
+      </div>
+      <div style="padding:12px var(--cp);border-right:0.5px solid var(--g100)">
+        <div class="kpi-label" style="margin-bottom:4px">Actual (Locked)</div>
+        <div style="font-family:var(--fd);font-weight:bold;font-size:14px">${c.costsAct>0?D(c.costsAct):DASH}</div>
+        ${c.costsAct>0?`<div style="font-size:10px;margin-top:2px;${c.costsAct>c.costsLk?'color:var(--red600)':''}">${varStr(c.costsLk-c.costsAct)} vs locked</div>`:''}
+      </div>
+      <div style="padding:12px var(--cp)">
+        <div class="kpi-label" style="margin-bottom:6px">% Locked</div>
+        ${pctBar(c.costsPct,'var(--black)')}
+      </div>
+    </div>`;
 
   document.getElementById('dd-costs').innerHTML=
-    `<div class="cost-col-header" style="padding-left:var(--cp)">
+    summaryHtml+
+    `<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:1fr 96px 96px 96px 120px 130px">
       <span class="cost-col-label">Category</span>
-      <span class="cost-col-label">Budget</span>
+      <span class="cost-col-label">Total Budget</span>
+      <span class="cost-col-label">Locked</span>
       <span class="cost-col-label">Actual</span>
       <span class="cost-col-label">Variance</span>
-      <span class="cost-col-label">Status</span>
+      <span class="cost-col-label">% Locked</span>
     </div>`+
-    cats.map((cat,i)=>{
-      const variance=cat.hasAct?cat.budget-cat.actual:null;
-      const sp=variance!=null?(variance>=0?'<span class="pill green">Under</span>':'<span class="pill red">Over budget</span>'):'<span class="pill gray">Pending</span>';
+    catDefs.map((cat,i)=>{
+      const color=CAT_COLORS[cat.key]||'var(--g400)';
+      const variance=cat.locked>0&&cat.actual>0?cat.locked-cat.actual:null;
       return`
-        <div class="cost-cat-row" onclick="toggleCat(${i})">
+        <div class="cost-cat-row" style="grid-template-columns:1fr 96px 96px 96px 120px 130px" onclick="toggleCat(${i})">
           <div class="cost-cat-name">
             <span class="cost-chevron" id="chev-${i}">▶</span>
-            ${cat.key}
-            ${!cat.hasAct?'<span class="pill gray" style="font-size:7px">Actuals pending</span>':''}
+            ${colorDot(color)}${cat.key}
+            ${cat.budget===0?'<span class="pill gray" style="font-size:7px">No budget</span>':cat.actual===0?'<span class="pill gray" style="font-size:7px">Pending</span>':''}
           </div>
           <div class="cost-cat-num">${D(cat.budget)}</div>
-          <div class="cost-cat-num">${cat.hasAct?D(cat.actual):DASH}</div>
-          <div class="cost-cat-num">${varStr(variance)}</div>
-          <div>${sp}</div>
+          <div class="cost-cat-num">${cat.locked>0?D(cat.locked):DASH}</div>
+          <div class="cost-cat-num">${cat.actual>0?D(cat.actual):DASH}</div>
+          <div class="cost-cat-num">${variance!=null?varStr(variance):DASH}</div>
+          <div style="padding-right:var(--cp)">${cat.budget>0?pctBar(cat.pct,color):'<span class="dash-val">—</span>'}</div>
         </div>
         <div class="cost-body" id="cat-${i}">
-          ${cat.notes?`<div class="version-notes"><div class="version-notes-tag">Version notes</div>${cat.notes}</div>`:''}
           <div style="display:grid;grid-template-columns:1fr 110px 110px;padding:5px var(--cp) 5px 24px;background:var(--g50);border-bottom:0.5px solid var(--g100)">
             <span style="font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400)"></span>
             <span style="font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);text-align:right">Budget</span>
@@ -2009,12 +2088,13 @@ function buildDrill(){
           </div>
         </div>`;
     }).join('')+
-    `<div class="cost-totals">
-      <span class="cost-totals-label">Tour costs total</span>
+    `<div class="cost-totals" style="grid-template-columns:1fr 96px 96px 96px 120px 130px">
+      <span class="cost-totals-label">Total</span>
       <span class="cost-totals-num">${D(c.costs)}</span>
-      <span class="cost-totals-num">${totalActual>0?D(totalActual):DASH}</span>
-      <span class="cost-totals-num">${varStr(totalVariance)}</span>
-      <span></span>
+      <span class="cost-totals-num">${c.costsLk>0?D(c.costsLk):DASH}</span>
+      <span class="cost-totals-num">${c.costsAct>0?D(c.costsAct):DASH}</span>
+      <span class="cost-totals-num">${c.costsAct>0?varStr(c.costsLk-c.costsAct):DASH}</span>
+      <div style="padding-right:var(--cp)">${pctBar(c.costsPct,'var(--black)')}</div>
     </div>
     ${c.wht>0?`<div style="padding:9px var(--cp);border-top:0.5px solid var(--g100);font-style:italic;color:var(--g600);font-size:11px;display:flex;justify-content:space-between"><span>WHT (ex-line)</span><span style="font-family:var(--fd)">-${D(c.wht)}</span></div>`:''}`;
 }
@@ -2032,23 +2112,39 @@ function toggleCat(i){
   }
 }
 
-const CAT_KEYS=['Flights','Hotels','Wages','Tour Costs'];
+const CAT_KEYS=['Flights','Hotels','Wages','Production','Ground','Media','Misc'];
+const CAT_COLORS={
+  Flights:'var(--blue600)',Hotels:'var(--amber600)',Wages:'var(--green600)',
+  Production:'#8B5CF6',Ground:'#06B6D4',Media:'#F59E0B',Misc:'var(--g400)'
+};
 const CAT_TABLES={
   'Flights':{tid:'tbl8kQbMZ0wmB2lyY',
     fids:{party:'Party',person:'Person',date:'Date',dir:'Direction',
           budget:'Total Budget',actual:'Actual',leg:'Tour Leg',name:'Movement ID'}},
   'Hotels':{tid:'tblDjIcqvsQ479wJe',
     fids:{party:'Party Group',person:'Person',checkin:'Check In',checkout:'Check Out',
-          nights:'Nights',budget:'Hotel Budget (USD)',actual:'Actual (USD)',
+          nights:'Nights',budget:'Total Budget',actual:'Actual (USD)',
           city:'City',leg:'Tour Leg',name:'Stay ID'}},
   'Wages':{tid:'tblhsy9M9tHIABFDm',
     fids:{party:'Party',person:'Person',date:'Event Date',days:'# Days',
           rate:'Day Rate (USD)',budget:'Wages Budget (USD)',actual:'Wages Actual (USD)',
           leg:'Tour Leg',name:'Name',pd:'Total PD'}},
-  'Tour Costs':{tid:'tblG65wr4nnaNOEj4',
+  'Production':{tid:'tblG65wr4nnaNOEj4',deptFilter:'Production',
     fids:{desc:'Description',dept:'Department',event:'Tour Event',
-          budget:'Budget (USD)',actual:'Actual (USD)',status:'Status',
-          leg:'Tour Leg',name:'Name'}}
+          budget:'Budget Per Show (USD)',actual:'Actual (USD)',status:'Status',
+          leg:'Tour Leg',name:'Name'}},
+  'Ground':{tid:'tblG65wr4nnaNOEj4',deptFilter:'Ground Transport',
+    fids:{desc:'Description',dept:'Department',event:'Tour Event',
+          budget:'Budget Per Show (USD)',actual:'Actual (USD)',status:'Status',
+          leg:'Tour Leg',name:'Name'}},
+  'Media':{tid:'tblG65wr4nnaNOEj4',deptFilter:'Media',
+    fids:{desc:'Description',dept:'Department',event:'Tour Event',
+          budget:'Budget Per Show (USD)',actual:'Actual (USD)',status:'Status',
+          leg:'Tour Leg',name:'Name'}},
+  'Misc':{tid:'tblG65wr4nnaNOEj4',deptFilter:'Misc',
+    fids:{desc:'Description',dept:'Department',event:'Tour Event',
+          budget:'Budget Per Show (USD)',actual:'Actual (USD)',status:'Status',
+          leg:'Tour Leg',name:'Name'}},
 };
 
 async function loadCatDetail(i,body){
@@ -2075,18 +2171,28 @@ async function loadCatDetail(i,body){
 
     // Build filter: by selected shows or whole leg
     let formula;
+    const isTourCosts=['Production','Ground','Media','Misc'].includes(configKey);
+    const evField=isTourCosts?'Tour Event':'Event';
     if(selShowIds.size>0){
-      // Build OR formula matching any of the selected event names
-      const evField=configKey==='Tour Costs'?'Tour Event':'Event';
       const showNames=[...(window._showEvents||[])].filter(e=>selShowIds.has(e.id)).map(e=>e.name);
+      let showFilter;
       if(showNames.length===1){
-        formula=encodeURIComponent(`FIND("${showNames[0]}",ARRAYJOIN({${evField}}))`);
+        showFilter=`FIND("${showNames[0]}",ARRAYJOIN({${evField}}))`;
       }else{
         const ors=showNames.map(n=>`FIND("${n}",ARRAYJOIN({${evField}}))`).join(',');
-        formula=encodeURIComponent(`OR(${ors})`);
+        showFilter=`OR(${ors})`;
+      }
+      if(cfg.deptFilter){
+        formula=encodeURIComponent(`AND(${showFilter},{Department}="${cfg.deptFilter}")`);
+      }else{
+        formula=encodeURIComponent(showFilter);
       }
     }else{
-      formula=encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
+      if(cfg.deptFilter){
+        formula=encodeURIComponent(`AND(FIND("${legName}",ARRAYJOIN({Tour Leg})),{Department}="${cfg.deptFilter}")`);
+      }else{
+        formula=encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
+      }
     }
     const legRecs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
 
@@ -2096,7 +2202,7 @@ async function loadCatDetail(i,body){
       return;
     }
 
-    const html=configKey==='Tour Costs'
+    const html=isTourCosts
       ?renderProductionDetail(legRecs,cfg)
       :renderPersonDetail(legRecs,cfg,configKey);
 
