@@ -674,39 +674,45 @@ function setLoad(pct,txt){
 async function loadData(){
   try{
     setLoad(10,'Loading tour legs');
-    // Tour Legs — fetch by name (returns clean primitives for singleSelect/percent fields)
-    const TL_CORE=[
-      'Name','Region',
-      'Total Fee (USD)',
+    // Tour Legs — split into two fetches (Airtable URL length limit with many fields)
+    const TL_CORE_A=[
+      'Name','Region','Total Fee (USD)',
       'MGMT Commission %','Agent Commission %',
       'Marketing Alloc %','Salary Alloc %','Ops Alloc %',
       'Total Commissions','Total Allocations',
       'FLIGHTS: Total Budget','HOTELS: Total Budget','WAGES: Total Budget',
       'PRODUCTION: Total Budget','GROUND: Total Budget','MEDIA: Total Budget','MISC: Total Budget',
+      'Total Tour Costs Budget','Total Tour Costs Actual','Total Variance','Overall Invoiced %',
+      'Tour Events',
+    ];
+    const TL_CORE_B=[
+      'Name',
       'FLIGHTS: Budget (Locked)','HOTELS: Budget (Locked)','WAGES: Budget (Locked)',
       'PRODUCTION: Budget (Locked)','GROUND: Budget (Locked)','MEDIA: Budget (Locked)','MISC: Budget (Locked)',
       'FLIGHTS: Actual (Locked)','HOTELS: Actual (Locked)','WAGES: Actual (Locked)',
       'PRODUCTION: Actual (Locked)','GROUND: Actual (Locked)','MEDIA: Actual (Locked)','MISC: Actual (Locked)',
       'FLIGHTS: Budget (Pending)','HOTELS: Budget (Pending)','WAGES: Budget (Pending)',
       'PRODUCTION: Budget (Pending)','GROUND: Budget (Pending)','MEDIA: Budget (Pending)','MISC: Budget (Pending)',
-      'Total Tour Costs Budget','Total Tour Costs Actual','Total Variance','Overall Invoiced %',
+    ];
+    const TL_CORE_C=[
+      'Name',
       'Net Profit (Budget)','Margin % (Budget)',
       'Total WHT','Net Profit After WHT (Budget)',
       'Target Margin %','Target Net Profit','Profit Gap',
       'Additional Revenue for Target','Cost Saving for Target',
-      'Tour Events',
+      'Net Profit (Actual)','Margin % (Actual)','Net Profit After WHT (Actual)',
     ];
-    const TL_EXTENDED=[
-      'Net Profit (Actual)',
-      'Margin % (Actual)',
-      'Net Profit After WHT (Actual)',
-    ];
-    let lr=await fetchAll('Tour Legs',TL_CORE);
-    try{
-      const lrExt=await fetchAll('Tour Legs',['Name',...TL_EXTENDED]);
-      const extMap=new Map(lrExt.map(r=>[r.id,r.fields]));
-      lr=lr.map(r=>({...r,fields:{...r.fields,...(extMap.get(r.id)||{})}}));
-    }catch(e){ /* skip silently */ }
+    const [lrA,lrB,lrC]=await Promise.all([
+      fetchAll('Tour Legs',TL_CORE_A),
+      fetchAll('Tour Legs',TL_CORE_B),
+      fetchAll('Tour Legs',TL_CORE_C).catch(()=>[]),
+    ]);
+    const lrMapB=new Map(lrB.map(r=>[r.id,r.fields]));
+    const lrMapC=new Map(lrC.map(r=>[r.id,r.fields]));
+    const lr=lrA.map(r=>({
+      ...r,
+      fields:{...r.fields,...(lrMapB.get(r.id)||{}),...(lrMapC.get(r.id)||{})},
+    }));
     tourLegs=lr.map(r=>({
       id:r.id,
       name:r.fields['Name']||r.id,
