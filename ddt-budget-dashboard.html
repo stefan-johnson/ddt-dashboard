@@ -674,90 +674,45 @@ function setLoad(pct,txt){
 async function loadData(){
   try{
     setLoad(10,'Loading tour legs');
-    // Tour Legs — fetch by field ID to be immune to any field renames
-    const TL_FIELD_MAP={
-      'fldHBKZSqEJJMgOmx':'Name',
-      'fldb52z6F60pt5w9g':'Region',
-      'fldZKIPl4JOFfGbUL':'Total Fee (USD)',
-      'fldLggxx5RhiKDWY2':'MGMT Commission %',
-      'fldkDfOFl9j9977yM':'Agent Commission %',
-      'fldu2M1A9ibUdFfyt':'Marketing Alloc %',
-      'fldN0kHjqJ9obHcXj':'Salary Alloc %',
-      'fldGYfkSnrsFCXHGj':'Ops Alloc %',
-      'fldUNlms5jqnvbBAa':'Total Commissions',
-      'fldHvMTMXA94rwYRA':'Total Allocations',
-      // Budget totals
-      'fldq9KS0xgCMnr5gN':'FLIGHTS: Total Budget',
-      'flddoe2RWh7zlcVQG':'HOTELS: Total Budget',
-      'fldhlYJ5cuPHbNqAN':'WAGES: Total Budget',
-      'fld74iK6zovoqaHOD':'PRODUCTION: Total Budget',
-      'fldc3K3XoTs4N9dMb':'GROUND: Total Budget',
-      'fldkl1hvv4cJspabx':'MEDIA: Total Budget',
-      'fld2xNYT2bS1XM2aY':'MISC: Total Budget',
-      // Budget locked
-      'fldjgTrts9fVHNChQ':'FLIGHTS: Budget (Locked)',
-      'fldEDStUhXG4ZuTTn':'HOTELS: Budget (Locked)',
-      'fldUAr97elqu7qWoH':'WAGES: Budget (Locked)',
-      'fld5brjhOLG8h6urv':'PRODUCTION: Budget (Locked)',
-      'fldgpxjB0C1R0haL1':'GROUND: Budget (Locked)',
-      'fldjfJfyZZHfRcq9N':'MEDIA: Budget (Locked)',
-      'fldmLnZq149JyFcSg':'MISC: Budget (Locked)',
-      // Actual locked
-      'fldTYIY9WN9WUDzs6':'FLIGHTS: Actual (Locked)',
-      'fldGvVbzXRpGJ7r81':'HOTELS: Actual (Locked)',
-      'fldrvVKlMVgBiJn6R':'WAGES: Actual (Locked)',
-      'fldtAqMiYmd6LNsvz':'PRODUCTION: Actual (Locked)',
-      'fldN3yKSEca1ZVVX3':'GROUND: Actual (Locked)',
-      'fldNezzOUeAukCRyY':'MEDIA: Actual (Locked)',
-      'fldZJgZcNpCrhVPz8':'MISC: Actual (Locked)',
-      // Budget pending
-      'fldgl6uId89Bq1Edu':'FLIGHTS: Budget (Pending)',
-      'fldvy65mn7XLfBWHk':'HOTELS: Budget (Pending)',
-      'fldeqFxRNhK25NBxI':'WAGES: Budget (Pending)',
-      'fldP432LOmkCu6IFe':'PRODUCTION: Budget (Pending)',
-      'fld1j4Ac2PH483DSP':'GROUND: Budget (Pending)',
-      'fldr58IxkBNadoU6n':'MEDIA: Budget (Pending)',
-      'fldUUNY81pbdkrrd1':'MISC: Budget (Pending)',
-      // Totals and P&L
-      'fld2hw65IQ5hV30WG':'Total Tour Costs Budget',
-      'fldJigiD88wORR93z':'Total Tour Costs Actual',
-      'fld66OygqH9qVNVZP':'Total Variance',
-      'fldawaK7bYLmiaoFm':'Overall Invoiced %',
-      'fldR3jNJmW70Zqnik':'Net Profit (Budget)',
-      'fld5PkJH7tenf24lZ':'Margin % (Budget)',
-      'fldoxxOlHdkzqlGO4':'Total WHT',
-      'fld2HJTbO47Sjn0Wt':'Net Profit After WHT (Budget)',
-      'fldsqlXEVYw5MbmIA':'Target Margin %',
-      'fldfzQW9USZuo2qZF':'Target Net Profit',
-      'fldAn8XXKv9x3zi5L':'Profit Gap',
-      'fldCekzfFeGWrO9fg':'Additional Revenue for Target',
-      'fldgswmCvNf6O3I2l':'Cost Saving for Target',
-      'fldbEoQfmaLDbFU63':'Tour Events',
-      // Extended (may not exist on all legs)
-      'fldgTKEzP018dxmyw':'Net Profit (Actual)',
-      'fldofPOarrwuTYF6I':'Net Profit After WHT (Actual)',
-    };
-    const tlRaw=await fetchAllById('tblH98PfjYYOrcQYS',Object.keys(TL_FIELD_MAP));
-    const lr=tlRaw.map(r=>{
-      const raw=r.fields||{};
-      const mapped={id:r.id};
-      Object.entries(TL_FIELD_MAP).forEach(([id,name])=>{if(raw[id]!==undefined)mapped[name]=raw[id];});
-      return mapped;
-    });
-    // Helper: extract primitive from singleSelect (fetchAllById returns {name,id} objects)
-    const sel=v=>v&&typeof v==='object'&&v.name?v.name:v;
+    // Tour Legs — fetch by name (returns clean primitives for singleSelect/percent fields)
+    const TL_CORE=[
+      'Name','Region',
+      'Total Fee (USD)',
+      'MGMT Commission %','Agent Commission %',
+      'Marketing Alloc %','Salary Alloc %','Ops Alloc %',
+      'Total Commissions','Total Allocations',
+      'FLIGHTS: Total Budget','HOTELS: Total Budget','WAGES: Total Budget',
+      'PRODUCTION: Total Budget','GROUND: Total Budget','MEDIA: Total Budget','MISC: Total Budget',
+      'FLIGHTS: Budget (Locked)','HOTELS: Budget (Locked)','WAGES: Budget (Locked)',
+      'PRODUCTION: Budget (Locked)','GROUND: Budget (Locked)','MEDIA: Budget (Locked)','MISC: Budget (Locked)',
+      'FLIGHTS: Actual (Locked)','HOTELS: Actual (Locked)','WAGES: Actual (Locked)',
+      'PRODUCTION: Actual (Locked)','GROUND: Actual (Locked)','MEDIA: Actual (Locked)','MISC: Actual (Locked)',
+      'FLIGHTS: Budget (Pending)','HOTELS: Budget (Pending)','WAGES: Budget (Pending)',
+      'PRODUCTION: Budget (Pending)','GROUND: Budget (Pending)','MEDIA: Budget (Pending)','MISC: Budget (Pending)',
+      'Total Tour Costs Budget','Total Tour Costs Actual','Total Variance','Overall Invoiced %',
+      'Net Profit (Budget)','Margin % (Budget)',
+      'Total WHT','Net Profit After WHT (Budget)',
+      'Target Margin %','Target Net Profit','Profit Gap',
+      'Additional Revenue for Target','Cost Saving for Target',
+      'Tour Events',
+    ];
+    const TL_EXTENDED=[
+      'Net Profit (Actual)',
+      'Margin % (Actual)',
+      'Net Profit After WHT (Actual)',
+    ];
+    let lr=await fetchAll('Tour Legs',TL_CORE);
+    try{
+      const lrExt=await fetchAll('Tour Legs',['Name',...TL_EXTENDED]);
+      const extMap=new Map(lrExt.map(r=>[r.id,r.fields]));
+      lr=lr.map(r=>({...r,fields:{...r.fields,...(extMap.get(r.id)||{})}}));
+    }catch(e){ /* skip silently */ }
     tourLegs=lr.map(r=>({
-      ...r,
-      name:r['Name']||r.id,
-      region:sel(r['Region'])||null,
-      'Gross Fee (USD)':r['Total Fee (USD)']||0,
-      // Flatten percent fields — cellValuesByFieldId returns them as decimals, same as by-name
-      'MGMT Commission %':r['MGMT Commission %']||0,
-      'Agent Commission %':r['Agent Commission %']||0,
-      'Marketing Alloc %':r['Marketing Alloc %']||0,
-      'Salary Alloc %':r['Salary Alloc %']||0,
-      'Ops Alloc %':r['Ops Alloc %']||0,
-      'Target Margin %':r['Target Margin %']||0,
+      id:r.id,
+      name:r.fields['Name']||r.id,
+      region:r.fields['Region']||null,
+      ...r.fields,
+      'Gross Fee (USD)':r.fields['Total Fee (USD)']||0,
     })).sort((a,b)=>{
       const prefixA=parseInt((a.name.match(/^(\d+)/)||[0,0])[1])||0;
       const prefixB=parseInt((b.name.match(/^(\d+)/)||[0,0])[1])||0;
