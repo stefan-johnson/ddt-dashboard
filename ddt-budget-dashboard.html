@@ -682,7 +682,9 @@ async function loadData(){
       'Total Commissions','Total Allocations',
       'FLIGHTS: Total Budget','HOTELS: Total Budget','WAGES: Total Budget',
       'PRODUCTION: Total Budget','GROUND: Total Budget','MEDIA: Total Budget','MISC: Total Budget',
-      'Total Tour Costs Budget','Total Tour Costs Actual','Total Variance','Overall Invoiced %',
+      'ALL TOUR COSTS: Total Budget','ALL TOUR COSTS: Budget (Locked)',
+      'ALL TOUR COSTS: Actual (Locked)','ALL TOUR COSTS: Budget (Pending)',
+      'ALL TOUR COSTS: Variance (Locked)','ALL TOUR COSTS: % Locked',
       'Tour Events',
     ];
     const TL_CORE_B=[
@@ -700,7 +702,7 @@ async function loadData(){
       'Total WHT','Net Profit After WHT (Budget)',
       'Target Margin %','Target Net Profit','Profit Gap',
       'Additional Revenue for Target','Cost Saving for Target',
-      'Net Profit (Actual)','Margin % (Actual)','Net Profit After WHT (Actual)',
+      'Net Profit (Actual)','Net Profit After WHT (Actual)',
     ];
     const [lrA,lrB,lrC]=await Promise.all([
       fetchAll('Tour Legs',TL_CORE_A),
@@ -889,8 +891,8 @@ function compute(v,tgt){
   const addRev=gap>0&&denom!==0?gap/denom:0;
   const costSav=gap>0?gap:0;
 
-  const invoicedPct=v['Overall Invoiced %']||(costs>0?costsAct/costs:0);
-  const totalVariance=v['Total Variance']??(costs-costsAct);
+  const invoicedPct=v['ALL TOUR COSTS: % Locked']||v['Overall Invoiced %']||(costs>0?costsAct/costs:0);
+  const totalVariance=v['ALL TOUR COSTS: Variance (Locked)']??v['Total Variance']??(costs-costsAct);
 
   return{
     gross,mgmt,agent,cp,mp,sp,op,ap,
@@ -1894,8 +1896,8 @@ function onVersionChange(){
         'GROUND: Actual (Locked)':leg['GROUND: Actual (Locked)'],
         'MEDIA: Actual (Locked)':leg['MEDIA: Actual (Locked)'],
         'MISC: Actual (Locked)':leg['MISC: Actual (Locked)'],
-        'Total Tour Costs Actual':leg['Total Tour Costs Actual'],
-        'Overall Invoiced %':leg['Overall Invoiced %'],
+        'ALL TOUR COSTS: Actual (Locked)':leg['ALL TOUR COSTS: Actual (Locked)'],
+        'ALL TOUR COSTS: % Locked':leg['ALL TOUR COSTS: % Locked'],
       };
     }
   }
@@ -1943,12 +1945,12 @@ function buildDrill(){
     const merged={
       ...v,...ev,
       'Gross Fee (USD)':null,
-      'Total Tour Costs Budget':null,
       'ALL TOUR COSTS: Total Budget':null,
-      'Total Tour Costs Actual':null,
       'ALL TOUR COSTS: Actual (Locked)':null,
       'ALL TOUR COSTS: Budget (Locked)':null,
       'ALL TOUR COSTS: Budget (Pending)':null,
+      'ALL TOUR COSTS: Variance (Locked)':null,
+      'ALL TOUR COSTS: % Locked':null,
       'Total Commissions':null,
       'Total Allocations':null,
       'Net Profit (Budget)':null,
