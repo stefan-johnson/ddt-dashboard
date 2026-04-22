@@ -272,7 +272,10 @@ select:focus{border-color:var(--g400);}
 /* 3-COLUMN PNL */
 .pnl-3col th{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);padding:7px 12px;background:var(--g50);border-bottom:0.5px solid var(--g100);text-align:right;}
 .pnl-3col th:first-child{text-align:left;}
-.pnl-3col .pnl-amt-dim{text-align:right;font-family:var(--fd);font-size:12px;color:var(--g400);}
+.pnl-3col th:nth-child(2){width:120px;}
+.pnl-3col th:nth-child(3){width:180px;}
+.pnl-3col th:nth-child(4){width:100px;}
+.pnl-3col .pnl-amt-dim{text-align:right;font-family:var(--fd);font-size:12px;color:var(--g400);padding:9px 12px;border-bottom:0.5px solid var(--g100);}
 .pnl-3col .pnl-stacked{text-align:right;}
 .pnl-3col .pnl-stacked-total{font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--red600);}
 .pnl-3col .pnl-stacked-bar{display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:4px;gap:1px;}
@@ -605,26 +608,16 @@ select:focus{border-color:var(--g400);}
       <span class="page-slider-val" id="dd-slider-val">30%</span>
     </div>
     <div class="dd-kpi-row" id="dd-kpis"></div>
-    <div class="two-col">
-      <div>
-        <div class="section-label">Revenue & deductions</div>
-        <div class="card"><table class="pnl-table pnl-3col" id="dd-pnl">
-          <thead><tr>
-            <th>Line item</th>
-            <th>Budget</th>
-            <th>Invoiced + Pending</th>
-            <th>Variance</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table></div>
-      </div>
-      <div>
-        <div class="section-label">Planning targets</div>
-        <div class="card">
-          <div class="planning-grid" id="dd-planning"></div>
-        </div>
-      </div>
-    </div>
+    <div class="section-label">Revenue & deductions</div>
+    <div class="card" style="margin-bottom:var(--cg)"><table class="pnl-table pnl-3col" id="dd-pnl">
+      <thead><tr>
+        <th>Line item</th>
+        <th>Budget</th>
+        <th>Invoiced + Pending</th>
+        <th>Variance</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
     <div class="section-label">Cost breakdown</div>
     <div class="card" id="dd-costs"></div>
   </div>
@@ -2026,10 +2019,10 @@ function buildDrill(){
     badge.textContent=snapLabel; badge.className='pill amber'; badge.style.display='inline-block';
   }
 
-  // Insight banner
+  // Insight banner — based on Invoiced+Pending view
   let ic='',it='';
-  if(at){ic='green';it=`<strong>${lname}</strong> is at or above the ${P(ddTarget)} target. No additional revenue or cost savings required at current budget.`;}
-  else{const gap=ddTarget-c.margin;ic=gap<0.05?'amber':'red';it=`<strong>${lname}</strong> is ${P(gap)} below the ${P(ddTarget)} target. Needs either <strong>${D(c.addRev)}</strong> in additional fees or <strong>${D(c.costSav)}</strong> in tour cost reductions.`;}
+  if(atIP){ic='green';it=`<strong>${lname}</strong> is tracking at or above the ${P(ddTarget)} target on current invoiced + pending costs.`;}
+  else{const gap=ddTarget-marginIP;ic=gap<0.05?'amber':'red';it=`<strong>${lname}</strong> is tracking ${P(gap)} below the ${P(ddTarget)} target. Needs either <strong>${D(addRevIP)}</strong> in additional fees or <strong>${D(costSavIP)}</strong> in cost reductions (invoiced + pending basis).`;}
   document.getElementById('dd-insight').innerHTML=`<div class="insight-banner ${ic}">${it}</div>`;
 
   // Invoiced + Pending calculations
@@ -2159,16 +2152,6 @@ function buildDrill(){
     </tr>`:''}
   `;
 
-  // Planning targets
-  document.getElementById('dd-planning').innerHTML=`
-    <div class="pm-cell"><div class="pm-label">Target margin</div><div class="pm-value">${P(ddTarget)}</div></div>
-    <div class="pm-cell"><div class="pm-label">Target net profit</div><div class="pm-value">${D(c.tnet)}</div></div>
-    <div class="pm-cell"><div class="pm-label">Gap to target</div><div class="pm-value ${at?'green':'red'}">${at?'—':D(c.gap)}</div><div class="pm-note">${at?'On target':'Positive = below target'}</div></div>
-    <div class="pm-cell"><div class="pm-label">Addl. revenue to hit target</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="pm-note">Accounts for commission & alloc on new revenue</div></div>
-    <div class="pm-cell"><div class="pm-label">Cost saving to hit target</div><div class="pm-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="pm-note">Holding revenue constant</div></div>
-    <div class="pm-cell"><div class="pm-label">At target?</div><div class="pm-value ${at?'green':'red'}">${at?'Yes':'No'}</div></div>
-  `;
-
   // Cost breakdown — 7 categories with locked structure
   const catDefs=[
     {key:'Flights',    budget:c.fl,  locked:c.flLk,  actual:c.flAct,  pct:c.flPct},
@@ -2278,7 +2261,7 @@ const CAT_COLORS={
 const CAT_TABLES={
   'Flights':{tid:'tbl8kQbMZ0wmB2lyY',
     fids:{party:'Party',person:'Person',date:'Date',dir:'Direction',
-          budget:'Total Budget',actual:'Actual',leg:'Tour Leg',name:'Movement ID'}},
+          budget:'Total Budget',actual:'Actual (From Flight Recon)',leg:'Tour Leg',name:'Movement ID'}},
   'Hotels':{tid:'tblDjIcqvsQ479wJe',
     fids:{party:'Party Group',person:'Person',checkin:'Check In',checkout:'Check Out',
           nights:'Nights',budget:'Total Budget',actual:'Actual (USD)',
