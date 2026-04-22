@@ -291,6 +291,11 @@ select:focus{border-color:var(--g400);}
 .pnl-3col .pnl-stacked-bar{display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:4px;gap:1px;}
 .pnl-3col .pnl-stacked-legend{display:flex;justify-content:space-between;margin-top:3px;}
 .pnl-3col .pnl-stacked-legend span{font-family:var(--fd);font-size:8px;color:var(--g400);}
+/* Cost breakdown toolbar */
+.cb-toggle-group{display:flex;background:var(--g50);border:0.5px solid var(--g100);border-radius:6px;padding:2px;gap:2px;}
+.cb-toggle{font-family:var(--fu);font-size:10px;font-weight:bold;color:var(--g400);background:none;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;transition:all .1s;}
+.cb-toggle:hover{color:var(--black);}
+.cb-toggle.active{background:var(--white);color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
 .logo-wrap{display:flex;align-items:center;}
 [data-theme="dark"] .logo-wrap svg,
 [data-theme="dark"] .auth-logo svg{ filter:invert(1); }
@@ -628,7 +633,21 @@ select:focus{border-color:var(--g400);}
       </tr></thead>
       <tbody></tbody>
     </table></div>
-    <div class="section-label">Cost breakdown</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span class="section-label" style="margin-bottom:0">Cost breakdown</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div class="cb-toggle-group" id="cb-group-type">
+          <button class="cb-toggle active" data-val="category" onclick="setCbType('category')">By Category</button>
+          <button class="cb-toggle" data-val="party" onclick="setCbType('party')">By Party</button>
+        </div>
+        <div style="width:1px;height:16px;background:var(--g100)"></div>
+        <div class="cb-toggle-group" id="cb-group-view">
+          <button class="cb-toggle active" data-val="detail" onclick="setCbView('detail')">Detail</button>
+          <button class="cb-toggle" data-val="bar" onclick="setCbView('bar')">Bar</button>
+          <button class="cb-toggle" data-val="pie" onclick="setCbView('pie')">Pie</button>
+        </div>
+      </div>
+    </div>
     <div class="card" id="dd-costs"></div>
   </div>
   <div class="disclaimer">This dashboard is provided as an estimate only and is based on information available at the time of preparation. All figures are indicative and subject to change.</div>
@@ -641,6 +660,8 @@ let ovTarget=0.30, ddTarget=0.30;
 let selLegId=null, selVersion=null;
 let selectedLegIds=new Set(); // IDs of legs included in overview KPI totals
 let selectedRegions=new Set(); // empty = all regions
+let cbType='category'; // 'category' | 'party'
+let cbView='detail';   // 'detail' | 'bar' | 'pie'
 
 const D=(n,dp=0)=>n==null?'—':'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp});
 const P=n=>n==null?'—':(n*100).toFixed(1)+'%';
@@ -2063,8 +2084,8 @@ function buildDrill(){
         <div class="kc-hero-val">${D(costsIP)}</div>
         ${c.costsAct>0||costsPending>0?`
         <div class="kc-bar">
-          <div class="kc-bar-seg" style="width:${c.costs>0?Math.min(100,c.costsAct/c.costs*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;"></div>
-          <div class="kc-bar-seg" style="width:${c.costs>0?Math.min(100,costsPending/c.costs*100).toFixed(1):0}%;background:var(--g200);border-radius:0 2px 2px 0;"></div>
+          <div class="kc-bar-seg" style="width:${costsIP>0?(c.costsAct/costsIP*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;"></div>
+          <div class="kc-bar-seg" style="width:${costsIP>0?(costsPending/costsIP*100).toFixed(1):100}%;background:var(--g200);border-radius:0 2px 2px 0;"></div>
         </div>
         <div class="kc-bar-legend">
           <span class="kc-bar-legend-item">${D(c.costsAct)} invoiced</span>
@@ -2134,8 +2155,8 @@ function buildDrill(){
         <div style="text-align:right;font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--red600);margin-bottom:5px">−${D(costsIP)}</div>
         ${c.costsAct>0||costsPending>0?`
         <div class="pnl-stacked-bar">
-          <div style="width:${c.costs>0?Math.min(100,c.costsAct/c.costs*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;height:100%"></div>
-          <div style="width:${c.costs>0?Math.min(100,costsPending/c.costs*100).toFixed(1):0}%;background:var(--g200);border-radius:0 2px 2px 0;height:100%"></div>
+          <div style="width:${costsIP>0?(c.costsAct/costsIP*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;height:100%"></div>
+          <div style="width:${costsIP>0?(costsPending/costsIP*100).toFixed(1):100}%;background:var(--g200);border-radius:0 2px 2px 0;height:100%"></div>
         </div>
         <div class="pnl-stacked-legend" style="margin-top:3px">
           <span>${D(c.costsAct)} invoiced</span>
@@ -2160,21 +2181,21 @@ function buildDrill(){
     </tr>`:''}
   `;
 
-  // Cost breakdown — 7 categories
+  // Cost breakdown — route by cbType and cbView
   const catDefs=[
-    {key:'Flights',    budget:c.fl,  invoiced:c.flAct, pending:c.flPd, pct:c.flPct},
-    {key:'Hotels',     budget:c.ht,  invoiced:c.htAct, pending:c.htPd, pct:c.htPct},
-    {key:'Wages',      budget:c.wg,  invoiced:c.wgAct, pending:c.wgPd, pct:c.wgPct},
-    {key:'Production', budget:c.pr,  invoiced:c.prAct, pending:c.prPd, pct:c.prPct},
-    {key:'Ground',     budget:c.gt,  invoiced:c.gtAct, pending:c.gtPd, pct:c.gtPct},
-    {key:'Media',      budget:c.md,  invoiced:c.mdAct, pending:c.mdPd, pct:c.mdPct},
-    {key:'Misc',       budget:c.ms,  invoiced:c.msAct, pending:c.msPd, pct:c.msPct},
+    {key:'Flights',    budget:c.fl,  invoiced:c.flAct, pending:c.flPd, pct:c.flPct, lockedBudget:c.flLk},
+    {key:'Hotels',     budget:c.ht,  invoiced:c.htAct, pending:c.htPd, pct:c.htPct, lockedBudget:c.htLk},
+    {key:'Wages',      budget:c.wg,  invoiced:c.wgAct, pending:c.wgPd, pct:c.wgPct, lockedBudget:c.wgLk},
+    {key:'Production', budget:c.pr,  invoiced:c.prAct, pending:c.prPd, pct:c.prPct, lockedBudget:c.prLk},
+    {key:'Ground',     budget:c.gt,  invoiced:c.gtAct, pending:c.gtPd, pct:c.gtPct, lockedBudget:c.gtLk},
+    {key:'Media',      budget:c.md,  invoiced:c.mdAct, pending:c.mdPd, pct:c.mdPct, lockedBudget:c.mdLk},
+    {key:'Misc',       budget:c.ms,  invoiced:c.msAct, pending:c.msPd, pct:c.msPct, lockedBudget:c.msLk},
   ];
 
   const colorDot=(color)=>`<span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;margin-right:4px"></span>`;
   const COL_GRID='1fr 80px 80px 80px 80px 80px 48px';
 
-  // Summary strip
+  // Summary strip (shared by all views)
   const totalInvoiced=c.costsAct,totalPending=c.costsPd,totalProj=totalInvoiced+totalPending;
   const totalVar=c.costs-totalProj;
   const summaryHtml=`
@@ -2200,23 +2221,29 @@ function buildDrill(){
         <div style="font-family:var(--fd);font-weight:bold;font-size:14px;color:${totalVar>0?'var(--green600)':totalVar<0?'var(--red600)':'inherit'}">${totalVar>0?'+':totalVar<0?'−':''}${D(Math.abs(totalVar))}</div>
       </div>
       <div style="padding:12px var(--cp)">
-        <div class="kpi-label" style="margin-bottom:6px">% Locked</div>
-        <div style="display:flex;align-items:center;gap:6px">${horseshoe(c.costsPct)}<span style="font-family:var(--fd);font-size:11px;color:var(--g600)">${(c.costsPct*100).toFixed(0)}%</span></div>
+        <div class="kpi-label" style="margin-bottom:8px">% Locked</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:3px;background:var(--g100);border-radius:2px;overflow:hidden">
+            <div style="width:${Math.min(100,c.costsPct*100).toFixed(1)}%;height:100%;background:var(--black);border-radius:2px"></div>
+          </div>
+          <span style="font-family:var(--fd);font-size:11px;color:var(--g600);white-space:nowrap">${(c.costsPct*100).toFixed(0)}%</span>
+        </div>
       </div>
     </div>`;
 
-  document.getElementById('dd-costs').innerHTML=
-    summaryHtml+
-    `<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:${COL_GRID}">
+  // Category detail view (the full existing table)
+  function renderCategoryDetail(){
+    const colHdr=`<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:${COL_GRID}">
       <span class="cost-col-label">Category</span>
       <span class="cost-col-label">Budget</span>
       <span class="cost-col-label">Invoiced</span>
       <span class="cost-col-label">Pending</span>
       <span class="cost-col-label">Projected</span>
       <span class="cost-col-label">Variance</span>
-      <span class="cost-col-label" style="text-align:center">%</span>
-    </div>`+
-    catDefs.map((cat,i)=>{
+      <span class="cost-col-label" style="text-align:center">% Locked</span>
+    </div>`;
+
+    const rows=catDefs.map((cat,i)=>{
       const color=CAT_COLORS[cat.key]||'var(--g400)';
       const proj=cat.invoiced+cat.pending;
       const variance=cat.budget>0?cat.budget-proj:null;
@@ -2236,10 +2263,10 @@ function buildDrill(){
           <div style="display:flex;align-items:center;justify-content:center">${cat.budget>0?horseshoe(cat.pct,color):'<span style="color:var(--g200)">—</span>'}</div>
         </div>
         <div class="cost-body" id="cat-${i}">
-          ${DRILL_HDR}
         </div>`;
-    }).join('')+
-    `<div class="cost-totals" style="grid-template-columns:${COL_GRID}">
+    }).join('');
+
+    const totalsRow=`<div class="cost-totals" style="grid-template-columns:${COL_GRID}">
       <span class="cost-totals-label">Total</span>
       <span class="cost-totals-num">${D(c.costs)}</span>
       <span class="cost-totals-num">${totalInvoiced>0?D(totalInvoiced):DASH}</span>
@@ -2249,6 +2276,95 @@ function buildDrill(){
       <div style="display:flex;align-items:center;justify-content:center">${horseshoe(c.costsPct,'var(--black)')}</div>
     </div>
     ${c.wht>0?`<div style="padding:9px var(--cp);border-top:0.5px solid var(--g100);font-style:italic;color:var(--g600);font-size:11px;display:flex;justify-content:space-between"><span>WHT (ex-line)</span><span style="font-family:var(--fd)">−${D(c.wht)}</span></div>`:''}`;
+
+    return colHdr+rows+totalsRow;
+  }
+
+  // Map catDefs to chart-compatible rows
+  const catRows=catDefs.map(cat=>({
+    name:cat.key,
+    color:CAT_COLORS[cat.key]||'var(--g400)',
+    budget:cat.budget,
+    invoiced:cat.invoiced,
+    pending:cat.pending,
+    lockedBudget:cat.lockedBudget||0,
+  }));
+
+  // Render based on type + view
+  const costsEl=document.getElementById('dd-costs');
+  costsEl.innerHTML=summaryHtml+'<div id="dd-costs-body"></div>';
+  const bodyEl=document.getElementById('dd-costs-body');
+
+  if(cbType==='party'){
+    bodyEl.innerHTML='<div style="padding:16px var(--cp);color:var(--g400);font-size:11px">Loading...</div>';
+    const legName=tourLegs.find(l=>l.id===selLegId)?.name||'';
+    buildCostsByParty(legName,selShowIds.size>0?selShowIds:null,window._showsNone).then(partyRows=>{
+      if(cbView==='bar'){
+        bodyEl.innerHTML=renderBarChart(partyRows,'Party');
+      }else if(cbView==='pie'){
+        bodyEl.innerHTML=renderPieChart(partyRows,'Party');
+      }else{
+        bodyEl.innerHTML=renderPartyDetail(partyRows);
+      }
+    });
+  }else{
+    // Category view
+    if(cbView==='bar'){
+      bodyEl.innerHTML=renderBarChart(catRows,'Category');
+    }else if(cbView==='pie'){
+      bodyEl.innerHTML=renderPieChart(catRows,'Category');
+    }else{
+      bodyEl.innerHTML=renderCategoryDetail();
+    }
+  }
+}
+
+function renderPartyDetail(rows){
+  const COL_GRID='1fr 80px 80px 80px 80px 80px 48px';
+  const colHdr=`<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:${COL_GRID}">
+    <span class="cost-col-label">Party</span>
+    <span class="cost-col-label">Budget</span>
+    <span class="cost-col-label">Invoiced</span>
+    <span class="cost-col-label">Pending</span>
+    <span class="cost-col-label">Projected</span>
+    <span class="cost-col-label">Variance</span>
+    <span class="cost-col-label" style="text-align:center">% Locked</span>
+  </div>`;
+
+  const rowsHtml=rows.filter(r=>r.budget>0).map(r=>{
+    const proj=r.invoiced+r.pending;
+    const variance=r.budget-proj;
+    const pct=r.budget>0?(r.lockedBudget/r.budget):0;
+    const varCell=variance===0?DASH:variance>0?`<span style="color:var(--green600)">+${D(variance)}</span>`:`<span style="color:var(--red600)">−${D(Math.abs(variance))}</span>`;
+    return`<div class="cost-cat-row" style="grid-template-columns:${COL_GRID};cursor:default">
+      <div class="cost-cat-name">
+        <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;margin-right:6px"></span>
+        ${r.name}
+      </div>
+      <div class="cost-cat-num">${D(r.budget)}</div>
+      <div class="cost-cat-num">${r.invoiced>0?D(r.invoiced):DASH}</div>
+      <div class="cost-cat-num" style="font-style:italic;color:var(--g400)">${r.pending>0?D(r.pending):DASH}</div>
+      <div class="cost-cat-num" style="font-weight:bold">${D(proj)}</div>
+      <div class="cost-cat-num">${varCell}</div>
+      <div style="display:flex;align-items:center;justify-content:center">${horseshoe(pct,r.color)}</div>
+    </div>`;
+  }).join('');
+
+  const tot=rows.reduce((a,r)=>({budget:a.budget+r.budget,invoiced:a.invoiced+r.invoiced,pending:a.pending+r.pending,lockedBudget:a.lockedBudget+r.lockedBudget}),{budget:0,invoiced:0,pending:0,lockedBudget:0});
+  const totProj=tot.invoiced+tot.pending;
+  const totVar=tot.budget-totProj;
+  const totPct=tot.budget>0?tot.lockedBudget/tot.budget:0;
+  const totalsRow=`<div class="cost-totals" style="grid-template-columns:${COL_GRID}">
+    <span class="cost-totals-label">Total</span>
+    <span class="cost-totals-num">${D(tot.budget)}</span>
+    <span class="cost-totals-num">${tot.invoiced>0?D(tot.invoiced):DASH}</span>
+    <span class="cost-totals-num" style="font-style:italic;color:var(--g400)">${tot.pending>0?D(tot.pending):DASH}</span>
+    <span class="cost-totals-num" style="font-weight:bold">${D(totProj)}</span>
+    <span class="cost-totals-num" style="color:${totVar>0?'var(--green600)':totVar<0?'var(--red600)':'inherit'}">${totVar>0?'+':totVar<0?'−':''}${D(Math.abs(totVar))}</span>
+    <div style="display:flex;align-items:center;justify-content:center">${horseshoe(totPct,'var(--black)')}</div>
+  </div>`;
+
+  return colHdr+rowsHtml+totalsRow;
 }
 
 function toggleCat(i){
@@ -2262,6 +2378,208 @@ function toggleCat(i){
     body.dataset.loaded='1';
     loadCatDetail(i,body);
   }
+}
+
+function setCbType(val){
+  cbType=val;
+  document.querySelectorAll('#cb-group-type .cb-toggle').forEach(b=>b.classList.toggle('active',b.dataset.val===val));
+  buildDrill();
+}
+
+function setCbView(val){
+  cbView=val;
+  document.querySelectorAll('#cb-group-view .cb-toggle').forEach(b=>b.classList.toggle('active',b.dataset.val===val));
+  buildDrill();
+}
+
+// ── PARTY GROUPING ──────────────────────────────────────────────────────────
+// Maps Airtable party values to display group names
+function partyToGroup(party){
+  const p=(party||'').toLowerCase();
+  if(p==='artist')return'Artist';
+  if(p==='management')return'Management';
+  if(p.includes('media'))return'Media';
+  if(p.includes('prod')||p==='vendors'||p.includes('vendor'))return'Production';
+  return'Other';
+}
+
+// Aggregate all loaded drill data by party group.
+// Since drill data is loaded lazily per-category, we fetch fresh here.
+async function buildCostsByParty(legName,selShowIds,showNone){
+  const PARTY_ORDER=['Artist','Management','Media','Production','Other'];
+  const groups={};
+  PARTY_ORDER.forEach(g=>{groups[g]={budget:0,invoiced:0,pending:0,lockedBudget:0};});
+
+  const isTourCosts=(key)=>['Production','Ground','Media','Misc'].includes(key);
+
+  // Build show filter
+  function makeFormula(cfg,legName,selShowIds,showNone){
+    if(showNone)return encodeURIComponent('FALSE()');
+    const evField=isTourCosts(cfg.key)?'Tour Event':'Event';
+    if(selShowIds&&selShowIds.size>0){
+      const showNames=[...(window._showEvents||[])].filter(e=>selShowIds.has(e.id)).map(e=>e.name);
+      if(!showNames.length)return encodeURIComponent('FALSE()');
+      if(showNames.length===1)return encodeURIComponent(`FIND("${showNames[0]}",ARRAYJOIN({${evField}}))`);
+      return encodeURIComponent(`OR(${showNames.map(n=>`FIND("${n}",ARRAYJOIN({${evField}}))`).join(',')})`);
+    }
+    if(cfg.deptFilter){
+      return encodeURIComponent(`AND(FIND("${legName}",ARRAYJOIN({Tour Leg})),{Department}="${cfg.deptFilter}")`);
+    }
+    return encodeURIComponent(`FIND("${legName}",ARRAYJOIN({Tour Leg}))`);
+  }
+
+  await Promise.all(Object.entries(CAT_TABLES).map(async([key,cfg])=>{
+    const cfgWithKey={...cfg,key};
+    const fieldIds=Object.values(cfg.fids);
+    const formula=makeFormula(cfgWithKey,legName,selShowIds,showNone);
+    try{
+      const recs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
+      recs.forEach(r=>{
+        const f=r.fields||{};
+        const budget=Number(f[cfg.fids.budget]||0);
+        const invoiced=Number(f[cfg.fids.actual]||0);
+        const finalised=f[cfg.fids.finalised]===true;
+        const pending=finalised?0:budget;
+        const lockedBudget=finalised?budget:0;
+
+        let group='Other';
+        if(isTourCosts(key)){
+          // Tour Costs belong to Production group (or Other if they don't fit)
+          group= key==='Ground'?'Production':
+                 key==='Media'?'Media':
+                 key==='Production'?'Production':'Other';
+        }else{
+          // Flights/Hotels/Wages: use party field
+          const partyVal=f[cfg.fids.party];
+          const party=Array.isArray(partyVal)&&partyVal.length>0
+            ?(typeof partyVal[0]==='object'?partyVal[0].name:String(partyVal[0]))
+            :(partyVal?String(partyVal):'Other');
+          group=partyToGroup(party);
+        }
+        if(!groups[group])groups[group]={budget:0,invoiced:0,pending:0,lockedBudget:0};
+        groups[group].budget+=budget;
+        groups[group].invoiced+=invoiced;
+        groups[group].pending+=pending;
+        groups[group].lockedBudget+=lockedBudget;
+      });
+    }catch(e){/* skip failed category */}
+  }));
+  return PARTY_ORDER.map(g=>({name:g,color:PARTY_COLORS[g]||'var(--g400)',...groups[g]}));
+}
+
+const PARTY_COLORS={
+  Artist:'var(--blue600)',
+  Management:'var(--amber600)',
+  Media:'#F59E0B',
+  Production:'#8B5CF6',
+  Other:'var(--g400)',
+};
+
+// ── CHART VIEWS ──────────────────────────────────────────────────────────────
+function renderBarChart(rows,title){
+  // rows: [{name, budget, invoiced, pending, color}]
+  const maxBudget=Math.max(...rows.map(r=>r.budget),1);
+  const COL_GRID='1fr 80px 80px 80px 80px 80px 48px';
+  const colHdr=`<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:${COL_GRID}">
+    <span class="cost-col-label">${title}</span>
+    <span class="cost-col-label">Budget</span>
+    <span class="cost-col-label">Invoiced</span>
+    <span class="cost-col-label">Pending</span>
+    <span class="cost-col-label">Projected</span>
+    <span class="cost-col-label">Variance</span>
+    <span class="cost-col-label" style="text-align:center">% Locked</span>
+  </div>`;
+
+  const rowsHtml=rows.filter(r=>r.budget>0).map(r=>{
+    const proj=r.invoiced+r.pending;
+    const variance=r.budget-proj;
+    const pct=r.budget>0?r.lockedBudget/r.budget:0;
+    const varCell=variance===0?DASH:variance>0?`<span style="color:var(--green600)">+${D(variance)}</span>`:`<span style="color:var(--red600)">−${D(Math.abs(variance))}</span>`;
+    // Two-layer bar: budget (grey track), invoiced (solid), pending (lighter)
+    const invW=(r.budget>0?Math.min(100,r.invoiced/r.budget*100):0).toFixed(1);
+    const pendW=(r.budget>0?Math.min(100,r.pending/r.budget*100):0).toFixed(1);
+    return`<div style="padding:10px var(--cp);border-bottom:0.5px solid var(--g100)">
+      <div style="display:grid;grid-template-columns:${COL_GRID};align-items:center;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
+          <span style="font-family:var(--fu);font-size:12px;font-weight:bold">${r.name}</span>
+        </div>
+        <div class="cost-cat-num">${D(r.budget)}</div>
+        <div class="cost-cat-num">${r.invoiced>0?D(r.invoiced):DASH}</div>
+        <div class="cost-cat-num" style="font-style:italic;color:var(--g400)">${r.pending>0?D(r.pending):DASH}</div>
+        <div class="cost-cat-num" style="font-weight:bold">${D(proj)}</div>
+        <div class="cost-cat-num">${varCell}</div>
+        <div style="display:flex;align-items:center;justify-content:center">${horseshoe(pct,r.color)}</div>
+      </div>
+      <div style="position:relative;height:8px;background:var(--g100);border-radius:4px;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;height:100%;width:${invW}%;background:${r.color};border-radius:4px 0 0 4px;opacity:0.9"></div>
+        <div style="position:absolute;left:${invW}%;top:0;height:100%;width:${pendW}%;background:${r.color};border-radius:0 4px 4px 0;opacity:0.35"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-family:var(--fd);font-size:8px;color:var(--g400)">${r.invoiced>0?D(r.invoiced)+' invoiced':''}</span>
+          <span style="font-family:var(--fd);font-size:8px;color:var(--g400);font-style:italic">${r.pending>0?D(r.pending)+' pending':''}</span>
+        </div>
+        <span style="font-family:var(--fd);font-size:8px;color:var(--g400)">${D(r.budget)} budget</span>
+      </div>
+    </div>`;
+  }).join('');
+  return colHdr+rowsHtml;
+}
+
+function renderPieChart(rows,title){
+  const data=rows.filter(r=>r.budget>0);
+  const totalProj=data.reduce((s,r)=>s+r.invoiced+r.pending,0)||1;
+  // Build SVG pie slices
+  const R=80,cx=100,cy=100,sw=32;
+  const circ=2*Math.PI*R;
+  let offset=0;
+  // Sort largest first for better visual
+  const sorted=[...data].sort((a,b)=>(b.invoiced+b.pending)-(a.invoiced+a.pending));
+  const slices=sorted.map(r=>{
+    const proj=r.invoiced+r.pending;
+    const arc=(proj/totalProj)*circ;
+    const slice={color:r.color,arc,offset,proj,name:r.name,pct:(proj/totalProj*100).toFixed(1)};
+    offset+=arc;
+    return slice;
+  });
+  const svgSlices=slices.map(s=>
+    `<circle r="${R}" cx="${cx}" cy="${cy}" fill="none" stroke="${s.color}" stroke-width="${sw}"
+      stroke-dasharray="${s.arc.toFixed(2)} ${(circ-s.arc).toFixed(2)}"
+      stroke-dashoffset="${(-s.offset).toFixed(2)}"
+      transform="rotate(-90,${cx},${cy})"/>`
+  ).join('');
+
+  const legendItems=data.map(r=>{
+    const proj=r.invoiced+r.pending;
+    const variance=r.budget-proj;
+    const varStr=variance===0?'':variance>0?`<span style="color:var(--green600);font-size:9px">+${D(variance)}</span>`:`<span style="color:var(--red600);font-size:9px">−${D(Math.abs(variance))}</span>`;
+    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid var(--g50)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
+        <span style="font-family:var(--fu);font-size:11px">${r.name}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-family:var(--fd);font-size:10px;color:var(--g400)">${(proj/totalProj*100).toFixed(1)}%</span>
+        <span style="font-family:var(--fd);font-size:11px;font-weight:bold;min-width:68px;text-align:right">${D(proj)}</span>
+        ${varStr}
+      </div>
+    </div>`;
+  }).join('');
+
+  return`<div style="display:flex;gap:24px;padding:20px var(--cp);align-items:center;flex-wrap:wrap">
+    <div style="flex-shrink:0">
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle r="${R}" cx="${cx}" cy="${cy}" fill="none" stroke="var(--g100)" stroke-width="${sw}"/>
+        ${svgSlices}
+        <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
+          font-family="'Courier New',monospace" font-size="11" font-weight="bold" fill="var(--black)">${D(totalProj)}</text>
+        <text x="${cx}" y="${cy+15}" text-anchor="middle" dominant-baseline="middle"
+          font-family="Helvetica,sans-serif" font-size="8" fill="var(--g400)">Projected</text>
+      </svg>
+    </div>
+    <div style="flex:1;min-width:200px">${legendItems}</div>
+  </div>`;
 }
 
 const CAT_KEYS=['Flights','Hotels','Wages','Production','Ground','Media','Misc'];
@@ -2496,7 +2814,6 @@ function renderPersonDetail(recs,cfg,catKey){
   const vc=(bud,proj)=>{const v=bud-proj;return v===0?`<div class="drill-num dim">—</div>`:v>0?`<div class="drill-num vpos">+${D(v)}</div>`:`<div class="drill-num vneg">−${D(Math.abs(v))}</div>`;};
 
   let html=`<div class="drill-wrap">`;
-  parties.forEach((persons,party)=>{
     const totBud=[...persons.values()].reduce((s,p)=>s+p.budget,0);
     const totInv=[...persons.values()].reduce((s,p)=>s+p.invoiced,0);
     const totPend=[...persons.values()].reduce((s,p)=>s+p.pending,0);
