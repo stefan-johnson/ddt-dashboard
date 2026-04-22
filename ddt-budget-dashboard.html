@@ -744,11 +744,20 @@ async function loadData(){
       Object.entries(TL_FIELD_MAP).forEach(([id,name])=>{if(raw[id]!==undefined)mapped[name]=raw[id];});
       return mapped;
     });
+    // Helper: extract primitive from singleSelect (fetchAllById returns {name,id} objects)
+    const sel=v=>v&&typeof v==='object'&&v.name?v.name:v;
     tourLegs=lr.map(r=>({
       ...r,
       name:r['Name']||r.id,
-      region:r['Region']||null,
+      region:sel(r['Region'])||null,
       'Gross Fee (USD)':r['Total Fee (USD)']||0,
+      // Flatten percent fields — cellValuesByFieldId returns them as decimals, same as by-name
+      'MGMT Commission %':r['MGMT Commission %']||0,
+      'Agent Commission %':r['Agent Commission %']||0,
+      'Marketing Alloc %':r['Marketing Alloc %']||0,
+      'Salary Alloc %':r['Salary Alloc %']||0,
+      'Ops Alloc %':r['Ops Alloc %']||0,
+      'Target Margin %':r['Target Margin %']||0,
     })).sort((a,b)=>{
       const prefixA=parseInt((a.name.match(/^(\d+)/)||[0,0])[1])||0;
       const prefixB=parseInt((b.name.match(/^(\d+)/)||[0,0])[1])||0;
