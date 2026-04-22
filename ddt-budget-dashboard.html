@@ -2019,15 +2019,9 @@ function buildDrill(){
     badge.textContent=snapLabel; badge.className='pill amber'; badge.style.display='inline-block';
   }
 
-  // Insight banner — based on Invoiced+Pending view
-  let ic='',it='';
-  if(atIP){ic='green';it=`<strong>${lname}</strong> is tracking at or above the ${P(ddTarget)} target on current invoiced + pending costs.`;}
-  else{const gap=ddTarget-marginIP;ic=gap<0.05?'amber':'red';it=`<strong>${lname}</strong> is tracking ${P(gap)} below the ${P(ddTarget)} target. Needs either <strong>${D(addRevIP)}</strong> in additional fees or <strong>${D(costSavIP)}</strong> in cost reductions (invoiced + pending basis).`;}
-  document.getElementById('dd-insight').innerHTML=`<div class="insight-banner ${ic}">${it}</div>`;
-
   // Invoiced + Pending calculations
-  const costsPending=c.costsPd; // budget for unreconciled items
-  const costsIP=c.costsAct+costsPending; // invoiced + pending
+  const costsPending=c.costsPd;
+  const costsIP=c.costsAct+costsPending;
   const netIP=c.gross-c.comm-c.alloc-costsIP;
   const marginIP=c.gross>0?netIP/c.gross:0;
   const atIP=marginIP>=ddTarget;
@@ -2037,6 +2031,12 @@ function buildDrill(){
   // Colour helpers
   const valCol=n=>n<0?'red':n>0?'green':'';
   const refCol=n=>n<0?'red':n>0?'amber':'';
+
+  // Insight banner — based on Invoiced+Pending view
+  let ic='',it='';
+  if(atIP){ic='green';it=`<strong>${lname}</strong> is tracking at or above the ${P(ddTarget)} target on current invoiced + pending costs.`;}
+  else{const gap=ddTarget-marginIP;ic=gap<0.05?'amber':'red';it=`<strong>${lname}</strong> is tracking ${P(gap)} below the ${P(ddTarget)} target. Needs either <strong>${D(addRevIP)}</strong> in additional fees or <strong>${D(costSavIP)}</strong> in cost reductions (invoiced + pending basis).`;}
+  document.getElementById('dd-insight').innerHTML=`<div class="insight-banner ${ic}">${it}</div>`;
 
   // KPI cards
   const ipLabel='Invoiced + Pending';
