@@ -219,7 +219,7 @@ select:focus{border-color:var(--g400);}
 .drill-chev.open{transform:rotate(90deg);}
 
 /* COST BREAKDOWN */
-.cost-cat-row{display:grid;grid-template-columns:1fr 96px 96px 96px 120px 130px;align-items:center;padding:9px var(--cp);background:var(--g50);border-bottom:0.5px solid var(--g100);cursor:pointer;}
+.cost-cat-row{display:grid;grid-template-columns:1fr 96px 96px 96px 120px 180px;align-items:center;padding:9px var(--cp);background:var(--g50);border-bottom:0.5px solid var(--g100);cursor:pointer;}
 .cost-cat-row:hover{background:var(--g100);}
 .cost-cat-name{display:flex;align-items:center;gap:4px;font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
 .cost-chevron{font-size:8px;color:var(--g400);transition:transform .15s;user-select:none;}
@@ -229,14 +229,14 @@ select:focus{border-color:var(--g400);}
 .cost-body.open{display:block;}
 .version-notes{padding:8px var(--cp) 8px 40px;border-bottom:0.5px dashed var(--g100);border-left:2px solid var(--blue600);background:var(--blue50);font-size:8.5px;color:var(--g600);line-height:1.5;}
 .version-notes-tag{font-family:var(--fu);font-size:7px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--blue600);margin-bottom:2px;}
-.cost-col-header{display:grid;grid-template-columns:1fr 96px 96px 96px 120px 130px;padding:6px var(--cp) 6px 40px;border-bottom:0.5px solid var(--g100);background:var(--g50);}
+.cost-col-header{display:grid;grid-template-columns:1fr 96px 96px 96px 120px 180px;padding:6px var(--cp) 6px 40px;border-bottom:0.5px solid var(--g100);background:var(--g50);}
 .cost-col-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);text-align:right;}
 .cost-col-label:first-child{text-align:left;}
 .cost-coa-row{display:grid;grid-template-columns:1fr 110px 110px;align-items:center;padding:9px var(--cp) 9px 40px;border-bottom:0.5px solid var(--g100);}
 .cost-coa-row:last-child{border-bottom:none;}
 .cost-coa-name{font-family:var(--fd);font-size:8.5px;color:var(--g600);}
 .cost-coa-num{font-family:var(--fd);font-size:8.5px;text-align:right;color:var(--g600);}
-.cost-totals{padding:10px var(--cp);display:grid;grid-template-columns:1fr 96px 96px 96px 120px 130px;align-items:center;border-top:0.5px solid var(--g100);background:var(--g50);}
+.cost-totals{padding:10px var(--cp);display:grid;grid-template-columns:1fr 96px 96px 96px 120px 180px;align-items:center;border-top:0.5px solid var(--g100);background:var(--g50);}
 .cost-totals-label{font-family:var(--fu);font-weight:bold;font-size:9px;color:var(--black);}
 .cost-totals-num{font-family:var(--fd);font-weight:bold;font-size:12px;text-align:right;color:var(--black);}
 .var-pos{color:var(--green600);}
@@ -2117,30 +2117,28 @@ function buildDrill(){
     <tr><td class="pnl-indent">— Marketing</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.mktAlloc)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.mktAlloc)}</td><td class="pnl-amt-dim">—</td></tr>
     <tr><td class="pnl-indent">— Salary (off-road)</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.salAlloc)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.salAlloc)}</td><td class="pnl-amt-dim">—</td></tr>
     <tr><td class="pnl-indent">— Ops</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.opsAlloc)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.opsAlloc)}</td><td class="pnl-amt-dim">—</td></tr>
-    <tr>
-      <td class="pnl-name">Tour costs</td>
-      <td class="pnl-amt neg">−${D(c.costs)}</td>
+    <tr style="vertical-align:top">
+      <td class="pnl-name" style="padding-top:11px">Tour costs</td>
+      <td class="pnl-amt neg" style="padding-top:11px">−${D(c.costs)}</td>
       <td style="padding:9px 12px;border-bottom:0.5px solid var(--g100)">
-        <div class="pnl-stacked">
-          <div class="pnl-stacked-total">−${D(costsIP)}</div>
-          ${c.costsAct>0||costsPending>0?`
-          <div class="pnl-stacked-bar">
-            <div style="width:${c.costs>0?Math.min(100,c.costsAct/c.costs*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;height:100%"></div>
-            <div style="width:${c.costs>0?Math.min(100,costsPending/c.costs*100).toFixed(1):0}%;background:var(--g200);border-radius:0 2px 2px 0;height:100%"></div>
-          </div>
-          <div class="pnl-stacked-legend">
-            <span>${D(c.costsAct)} invoiced</span>
-            <span>${D(costsPending)} pending</span>
-          </div>`:''}
+        <div style="text-align:right;font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--red600);margin-bottom:5px">−${D(costsIP)}</div>
+        ${c.costsAct>0||costsPending>0?`
+        <div class="pnl-stacked-bar">
+          <div style="width:${c.costs>0?Math.min(100,c.costsAct/c.costs*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;height:100%"></div>
+          <div style="width:${c.costs>0?Math.min(100,costsPending/c.costs*100).toFixed(1):0}%;background:var(--g200);border-radius:0 2px 2px 0;height:100%"></div>
         </div>
+        <div class="pnl-stacked-legend" style="margin-top:3px">
+          <span>${D(c.costsAct)} invoiced</span>
+          <span>${D(costsPending)} pending</span>
+        </div>`:''}
       </td>
-      <td class="pnl-amt" style="padding-right:12px">${costsIPVariance>0?`<span class="var-pos">+${D(costsIPVariance)}</span>`:costsIPVariance<0?`<span class="var-neg">−${D(Math.abs(costsIPVariance))}</span>`:'—'}</td>
+      <td class="pnl-amt" style="padding-right:12px;padding-top:11px">${costsIPVariance>0?`<span class="var-pos">+${D(costsIPVariance)}</span>`:costsIPVariance<0?`<span class="var-neg">−${D(Math.abs(costsIPVariance))}</span>`:'—'}</td>
     </tr>
-    <tr class="pnl-total">
+    <tr class="pnl-total" style="vertical-align:top">
       <td class="pnl-name">Net profit</td>
-      <td class="pnl-amt ${c.net<0?'neg':''}">${c.net<0?'−':''}${D(Math.abs(c.net))}<br><span style="font-family:var(--fd);font-size:10px;font-weight:normal;color:var(--g400)">${P(c.margin)}</span></td>
-      <td>${netIPStr}</td>
-      <td>${netVarStr}</td>
+      <td class="pnl-amt ${c.net<0?'neg':''}">${c.net<0?'−':''}${D(Math.abs(c.net))}<div style="font-family:var(--fd);font-size:10px;font-weight:normal;color:var(--g400);margin-top:2px">${P(c.margin)}</div></td>
+      <td class="pnl-amt ${netIP<0?'neg':''}" style="${netIP>=0?'color:var(--green800)':''}">${netIP<0?'−':''}${D(Math.abs(netIP))}<div style="font-family:var(--fd);font-size:10px;font-weight:normal;color:${netIP>=0?'var(--green600)':'var(--red600)'};margin-top:2px">${P(marginIP)}</div></td>
+      <td class="pnl-amt" style="padding-top:9px">${netVarStr}</td>
     </tr>
     ${c.wht>0?`
     <tr class="pnl-wht"><td class="pnl-name">WHT (ex-line)</td><td class="pnl-amt neg">−${D(c.wht)}</td><td class="pnl-amt neg">−${D(c.wht)}</td><td class="pnl-amt-dim">—</td></tr>
@@ -2197,7 +2195,7 @@ function buildDrill(){
 
   document.getElementById('dd-costs').innerHTML=
     summaryHtml+
-    `<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:1fr 96px 96px 96px 120px 130px">
+    `<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:1fr 96px 96px 96px 120px 180px">
       <span class="cost-col-label">Category</span>
       <span class="cost-col-label">Total Budget</span>
       <span class="cost-col-label">Locked</span>
@@ -2209,7 +2207,7 @@ function buildDrill(){
       const color=CAT_COLORS[cat.key]||'var(--g400)';
       const variance=cat.locked>0&&cat.actual>0?cat.locked-cat.actual:null;
       return`
-        <div class="cost-cat-row" style="grid-template-columns:1fr 96px 96px 96px 120px 130px" onclick="toggleCat(${i})">
+        <div class="cost-cat-row" style="grid-template-columns:1fr 96px 96px 96px 120px 180px" onclick="toggleCat(${i})">
           <div class="cost-cat-name">
             <span class="cost-chevron" id="chev-${i}">▶</span>
             ${colorDot(color)}${cat.key}
@@ -2229,7 +2227,7 @@ function buildDrill(){
           </div>
         </div>`;
     }).join('')+
-    `<div class="cost-totals" style="grid-template-columns:1fr 96px 96px 96px 120px 130px">
+    `<div class="cost-totals" style="grid-template-columns:1fr 96px 96px 96px 120px 180px">
       <span class="cost-totals-label">Total</span>
       <span class="cost-totals-num">${D(c.costs)}</span>
       <span class="cost-totals-num">${c.costsLk>0?D(c.costsLk):DASH}</span>
