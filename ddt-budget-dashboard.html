@@ -243,7 +243,41 @@ select:focus{border-color:var(--g400);}
 .var-neg{color:var(--red600);}
 .dash-val{color:var(--g400);font-family:var(--fd);font-size:8.5px;}
 
-/* LOGO — invert in dark mode */
+/* DUAL KPI CARDS (drilldown) */
+.dd-kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--cg);margin-bottom:var(--cg);align-items:stretch;}
+.dd-kpi-card{background:var(--white);border:0.5px solid var(--g100);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;}
+.kc-title{font-family:var(--fu);font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);padding:9px var(--cp) 8px;background:var(--g50);border-bottom:0.5px solid var(--g100);}
+.kc-ref{padding:9px var(--cp) 8px;border-bottom:0.5px dashed var(--g100);min-height:42px;display:flex;flex-direction:column;justify-content:center;}
+.kc-ref-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.kc-ref-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g200);}
+.kc-ref-val{font-family:var(--fd);font-size:13px;color:var(--g400);font-weight:bold;}
+.kc-ref-val.red{color:var(--red100);}
+.kc-ref-val.amber{color:var(--amber100);}
+.kc-hero{padding:12px var(--cp) 16px;flex:1;display:flex;flex-direction:column;justify-content:flex-start;}
+.kc-hero-label{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);margin-bottom:6px;}
+.kc-hero-val{font-family:var(--fd);font-size:22px;font-weight:bold;color:var(--black);line-height:1.05;}
+.kc-hero-val.red{color:var(--red800);}
+.kc-hero-val.green{color:var(--green800);}
+.kc-hero-val.amber{color:var(--amber800);}
+.kc-hero-sub{font-size:10px;color:var(--g400);margin-top:4px;}
+.kc-hero-sub.red{color:var(--red600);}
+.kc-hero-sub.green{color:var(--green600);}
+.kc-solo{padding:0 var(--cp);flex:1;display:flex;flex-direction:column;justify-content:center;}
+.kc-solo-val{font-family:var(--fd);font-size:22px;font-weight:bold;color:var(--black);line-height:1.05;}
+.kc-bar{display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:8px;gap:1px;}
+.kc-bar-seg{height:100%;border-radius:2px;}
+.kc-bar-legend{display:flex;justify-content:space-between;margin-top:4px;}
+.kc-bar-legend-item{font-size:8px;color:var(--g400);}
+
+/* 3-COLUMN PNL */
+.pnl-3col th{font-family:var(--fu);font-size:7.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g400);padding:7px 12px;background:var(--g50);border-bottom:0.5px solid var(--g100);text-align:right;}
+.pnl-3col th:first-child{text-align:left;}
+.pnl-3col .pnl-amt-dim{text-align:right;font-family:var(--fd);font-size:12px;color:var(--g400);}
+.pnl-3col .pnl-stacked{text-align:right;}
+.pnl-3col .pnl-stacked-total{font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--red600);}
+.pnl-3col .pnl-stacked-bar{display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:4px;gap:1px;}
+.pnl-3col .pnl-stacked-legend{display:flex;justify-content:space-between;margin-top:3px;}
+.pnl-3col .pnl-stacked-legend span{font-family:var(--fd);font-size:8px;color:var(--g400);}
 .logo-wrap{display:flex;align-items:center;}
 [data-theme="dark"] .logo-wrap svg,
 [data-theme="dark"] .auth-logo svg{ filter:invert(1); }
@@ -570,11 +604,19 @@ select:focus{border-color:var(--g400);}
       <input type="range" id="dd-slider" min="10" max="60" value="30" step="1" oninput="onDdSlider(this.value)">
       <span class="page-slider-val" id="dd-slider-val">30%</span>
     </div>
-    <div class="kpi-row kpi-row-6" id="dd-kpis"></div>
+    <div class="dd-kpi-row" id="dd-kpis"></div>
     <div class="two-col">
       <div>
         <div class="section-label">Revenue & deductions</div>
-        <div class="card"><table class="pnl-table" id="dd-pnl"></table></div>
+        <div class="card"><table class="pnl-table pnl-3col" id="dd-pnl">
+          <thead><tr>
+            <th>Line item</th>
+            <th>Budget</th>
+            <th>Invoiced + Pending</th>
+            <th>Variance</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table></div>
       </div>
       <div>
         <div class="section-label">Planning targets</div>
@@ -1990,31 +2032,131 @@ function buildDrill(){
   else{const gap=ddTarget-c.margin;ic=gap<0.05?'amber':'red';it=`<strong>${lname}</strong> is ${P(gap)} below the ${P(ddTarget)} target. Needs either <strong>${D(c.addRev)}</strong> in additional fees or <strong>${D(c.costSav)}</strong> in tour cost reductions.`;}
   document.getElementById('dd-insight').innerHTML=`<div class="insight-banner ${ic}">${it}</div>`;
 
-  // KPI cards — show Budget margin as primary, Actual margin if available
-  const hasAct=c.costsAct>0;
-  const invoicedPct=c.invoicedPct>0?`${(c.invoicedPct*100).toFixed(0)}% invoiced`:'';
+  // Invoiced + Pending calculations
+  const costsPending=c.costsPd; // budget for unreconciled items
+  const costsIP=c.costsAct+costsPending; // invoiced + pending
+  const netIP=c.gross-c.comm-c.alloc-costsIP;
+  const marginIP=c.gross>0?netIP/c.gross:0;
+  const atIP=marginIP>=ddTarget;
+  const addRevIP=atIP?0:Math.max(0,(ddTarget*c.gross-netIP)/(1-c.cp-c.ap-ddTarget));
+  const costSavIP=atIP?0:Math.max(0,ddTarget*c.gross-(c.gross-c.comm-c.alloc-costsIP));
+
+  // Colour helpers
+  const valCol=n=>n<0?'red':n>0?'green':'';
+  const refCol=n=>n<0?'red':n>0?'amber':'';
+
+  // KPI cards
+  const ipLabel='Invoiced + Pending';
   document.getElementById('dd-kpis').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">Gross fee</div><div class="kpi-value">${D(c.gross)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Tour costs (budget)</div><div class="kpi-value">${D(c.costs)}</div>${invoicedPct?`<div class="kpi-sub">${invoicedPct}</div>`:''}</div>
-    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">${c.net<0?'Loss':'Net profit'}</div><div class="kpi-value ${at?'green':'red'}">${D(c.net)}</div></div>
-    <div class="kpi-card ${at?'green':'red'}"><div class="kpi-label">Margin</div><div class="kpi-value ${at?'green':'red'}">${P(c.margin)}</div></div>
-    <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Addl. revenue for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.addRev)}</div><div class="kpi-sub">in additional fees</div></div>
-    <div class="kpi-card ${at?'green':'amber'}"><div class="kpi-label">Cost saving for target</div><div class="kpi-value ${at?'green':'amber'}">${at?'—':D(c.costSav)}</div><div class="kpi-sub">holding revenue constant</div></div>
+    <div class="dd-kpi-card">
+      <div class="kc-title">Gross Fee</div>
+      <div class="kc-solo"><div class="kc-solo-val">${D(c.gross)}</div></div>
+    </div>
+    <div class="dd-kpi-card">
+      <div class="kc-title">Tour Costs</div>
+      <div class="kc-ref"><div class="kc-ref-row"><span class="kc-ref-label">Budget</span><span class="kc-ref-val">${D(c.costs)}</span></div></div>
+      <div class="kc-hero">
+        <div class="kc-hero-label">${ipLabel}</div>
+        <div class="kc-hero-val">${D(costsIP)}</div>
+        ${c.costsAct>0||costsPending>0?`
+        <div class="kc-bar">
+          <div class="kc-bar-seg" style="width:${c.costs>0?Math.min(100,c.costsAct/c.costs*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;"></div>
+          <div class="kc-bar-seg" style="width:${c.costs>0?Math.min(100,costsPending/c.costs*100).toFixed(1):0}%;background:var(--g200);border-radius:0 2px 2px 0;"></div>
+        </div>
+        <div class="kc-bar-legend">
+          <span class="kc-bar-legend-item">${D(c.costsAct)} invoiced</span>
+          <span class="kc-bar-legend-item">${D(costsPending)} pending</span>
+        </div>`:''}
+      </div>
+    </div>
+    <div class="dd-kpi-card">
+      <div class="kc-title">Profit / Loss</div>
+      <div class="kc-ref"><div class="kc-ref-row"><span class="kc-ref-label">Budget</span><span class="kc-ref-val ${refCol(c.net)}">${c.net<0?'−':''}${D(Math.abs(c.net))}</span></div></div>
+      <div class="kc-hero">
+        <div class="kc-hero-label">${ipLabel}</div>
+        <div class="kc-hero-val ${valCol(netIP)}">${netIP<0?'−':''}${D(Math.abs(netIP))}</div>
+        <div class="kc-hero-sub ${valCol(marginIP)}">${P(marginIP)} margin</div>
+      </div>
+    </div>
+    <div class="dd-kpi-card">
+      <div class="kc-title">Target Revenue Gap</div>
+      <div class="kc-ref"><div class="kc-ref-row"><span class="kc-ref-label">Budget</span><span class="kc-ref-val ${at?'':'amber'}">${at?'On target':D(c.addRev)}</span></div></div>
+      <div class="kc-hero">
+        <div class="kc-hero-label">${ipLabel}</div>
+        <div class="kc-hero-val ${atIP?'green':'amber'}">${atIP?'On target':D(addRevIP)}</div>
+        <div class="kc-hero-sub">in additional fees</div>
+      </div>
+    </div>
+    <div class="dd-kpi-card">
+      <div class="kc-title">Target Cost Gap</div>
+      <div class="kc-ref"><div class="kc-ref-row"><span class="kc-ref-label">Budget</span><span class="kc-ref-val ${at?'':'amber'}">${at?'On target':D(c.costSav)}</span></div></div>
+      <div class="kc-hero">
+        <div class="kc-hero-label">${ipLabel}</div>
+        <div class="kc-hero-val ${atIP?'green':'amber'}">${atIP?'On target':D(costSavIP)}</div>
+        <div class="kc-hero-sub">holding revenue constant</div>
+      </div>
+    </div>
   `;
 
-  // P&L — split commissions
-  document.getElementById('dd-pnl').innerHTML=`
-    <tr><td class="pnl-name">Gross fee</td><td class="pnl-pct">—</td><td class="pnl-amt">${D(c.gross)}</td></tr>
-    <tr><td class="pnl-name">Commission (subtotal)</td><td class="pnl-pct">${P(c.cp)}</td><td class="pnl-amt neg">-${D(c.comm)}</td></tr>
-    <tr><td class="pnl-indent">— Management</td><td class="pnl-pct">${P(c.mgmt)}</td><td class="pnl-amt">-${D(c.mgmtComm)}</td></tr>
-    <tr><td class="pnl-indent">— ${agentLabel}</td><td class="pnl-pct">${P(c.agent)}</td><td class="pnl-amt">-${D(c.agentComm)}</td></tr>
-    <tr><td class="pnl-name">Allocations (subtotal)</td><td class="pnl-pct">${P(c.ap)}</td><td class="pnl-amt neg">-${D(c.alloc)}</td></tr>
-    <tr><td class="pnl-indent">— Marketing</td><td class="pnl-pct">${P(c.mp)}</td><td class="pnl-amt">-${D(c.mktAlloc)}</td></tr>
-    <tr><td class="pnl-indent">— Salary (off-road)</td><td class="pnl-pct">${P(c.sp)}</td><td class="pnl-amt">-${D(c.salAlloc)}</td></tr>
-    <tr><td class="pnl-indent">— Ops</td><td class="pnl-pct">${P(c.op)}</td><td class="pnl-amt">-${D(c.opsAlloc)}</td></tr>
-    <tr><td class="pnl-name">Tour costs</td><td class="pnl-pct">—</td><td class="pnl-amt neg">-${D(c.costs)}</td></tr>
-    <tr class="pnl-total"><td class="pnl-name">Net profit</td><td class="pnl-pct">${P(c.margin)}</td><td class="pnl-amt">${D(c.net)}</td></tr>
-    ${c.wht>0?`<tr><td class="pnl-name" style="color:var(--g600)">WHT (ex-line)</td><td class="pnl-pct">—</td><td class="pnl-amt neg">-${D(c.wht)}</td></tr><tr class="pnl-total"><td class="pnl-name">Net profit after WHT</td><td class="pnl-pct">—</td><td class="pnl-amt">${D(c.net-c.wht)}</td></tr>`:''}
+  // P&L — 3 columns: Budget / Invoiced+Pending / Variance
+  const pnlAmt=(bud,ip,neg=false)=>{
+    const v=ip-bud; // positive = under budget on costs = good
+    const vStr=v===0?'—':(v>0?`<span class="var-pos">+${D(v)}</span>`:`<span class="var-neg">−${D(Math.abs(v))}</span>`);
+    const budStr=neg?`<span class="pnl-amt neg">−${D(Math.abs(bud))}</span>`:`<span class="pnl-amt">${D(bud)}</span>`;
+    const ipStr=ip<0?`<span class="pnl-amt neg">−${D(Math.abs(ip))}</span>`:`<span class="pnl-amt">${D(ip)}</span>`;
+    return[budStr,ipStr,vStr];
+  };
+  const [feeB,feeIP,feeV]=pnlAmt(c.gross,c.gross);
+  const [commB,commIP,commV]=pnlAmt(c.comm,c.comm,true);
+  const [allocB,allocIP,allocV]=pnlAmt(c.alloc,c.alloc,true);
+  const costsIPVariance=c.costs-costsIP; // positive = under budget
+  const [netB_str]=pnlAmt(c.net,netIP);
+  const netIPStr=netIP<0?`<span class="pnl-amt neg">−${D(Math.abs(netIP))}<br><span style="font-size:10px;font-weight:normal;color:var(--red600)">${P(marginIP)}</span></span>`:`<span class="pnl-amt" style="color:var(--green800)">${D(netIP)}<br><span style="font-size:10px;font-weight:normal;color:var(--green600)">${P(marginIP)}</span></span>`;
+  const netVarStr=netIP-c.net===0?'—':netIP>c.net?`<span class="var-pos">+${D(Math.abs(netIP-c.net))}</span>`:`<span class="var-neg">−${D(Math.abs(netIP-c.net))}</span>`;
+
+  const tbody=document.querySelector('#dd-pnl tbody');
+  tbody.innerHTML=`
+    <tr><td class="pnl-name">Gross fee</td><td class="pnl-amt">${D(c.gross)}</td><td class="pnl-amt">${D(c.gross)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr><td class="pnl-name">Commission</td><td class="pnl-amt neg">−${D(c.comm)}</td><td class="pnl-amt neg">−${D(c.comm)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr><td class="pnl-indent">— Management</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.mgmtComm)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.mgmtComm)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr><td class="pnl-indent">— ${agentLabel}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.agentComm)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.agentComm)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr><td class="pnl-name">Allocations</td><td class="pnl-amt neg">−${D(c.alloc)}</td><td class="pnl-amt neg">−${D(c.alloc)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr><td class="pnl-indent">— Marketing</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.mktAlloc)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.mktAlloc)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr><td class="pnl-indent">— Salary (off-road)</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.salAlloc)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.salAlloc)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr><td class="pnl-indent">— Ops</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.opsAlloc)}</td><td class="pnl-amt" style="font-size:11px;color:var(--g400)">−${D(c.opsAlloc)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr>
+      <td class="pnl-name">Tour costs</td>
+      <td class="pnl-amt neg">−${D(c.costs)}</td>
+      <td style="padding:9px 12px;border-bottom:0.5px solid var(--g100)">
+        <div class="pnl-stacked">
+          <div class="pnl-stacked-total">−${D(costsIP)}</div>
+          ${c.costsAct>0||costsPending>0?`
+          <div class="pnl-stacked-bar">
+            <div style="width:${c.costs>0?Math.min(100,c.costsAct/c.costs*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;height:100%"></div>
+            <div style="width:${c.costs>0?Math.min(100,costsPending/c.costs*100).toFixed(1):0}%;background:var(--g200);border-radius:0 2px 2px 0;height:100%"></div>
+          </div>
+          <div class="pnl-stacked-legend">
+            <span>${D(c.costsAct)} invoiced</span>
+            <span>${D(costsPending)} pending</span>
+          </div>`:''}
+        </div>
+      </td>
+      <td class="pnl-amt" style="padding-right:12px">${costsIPVariance>0?`<span class="var-pos">+${D(costsIPVariance)}</span>`:costsIPVariance<0?`<span class="var-neg">−${D(Math.abs(costsIPVariance))}</span>`:'—'}</td>
+    </tr>
+    <tr class="pnl-total">
+      <td class="pnl-name">Net profit</td>
+      <td class="pnl-amt ${c.net<0?'neg':''}">${c.net<0?'−':''}${D(Math.abs(c.net))}<br><span style="font-family:var(--fd);font-size:10px;font-weight:normal;color:var(--g400)">${P(c.margin)}</span></td>
+      <td>${netIPStr}</td>
+      <td>${netVarStr}</td>
+    </tr>
+    ${c.wht>0?`
+    <tr class="pnl-wht"><td class="pnl-name">WHT (ex-line)</td><td class="pnl-amt neg">−${D(c.wht)}</td><td class="pnl-amt neg">−${D(c.wht)}</td><td class="pnl-amt-dim">—</td></tr>
+    <tr class="pnl-total">
+      <td class="pnl-name">Net after WHT</td>
+      <td class="pnl-amt ${c.net-c.wht<0?'neg':''}">${c.net-c.wht<0?'−':''}${D(Math.abs(c.net-c.wht))}</td>
+      <td class="pnl-amt ${netIP-c.wht<0?'neg':''}">${netIP-c.wht<0?'−':''}${D(Math.abs(netIP-c.wht))}</td>
+      <td class="pnl-amt-dim">—</td>
+    </tr>`:''}
   `;
 
   // Planning targets
