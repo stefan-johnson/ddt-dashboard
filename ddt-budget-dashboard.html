@@ -178,7 +178,7 @@ select:focus{border-color:var(--g400);}
 .pnl-table td{padding:9px var(--cp);border-bottom:0.5px solid var(--g100);font-size:12px;}
 .pnl-table tr:last-child td{border-bottom:none;}
 .pnl-name{color:var(--g600);}
-.pnl-indent{color:var(--g400);padding-left:32px!important;font-family:var(--fd);font-size:11px;}
+.pnl-indent{color:var(--g400);padding-left:32px!important;font-family:var(--fd);font-size:11px;white-space:nowrap;}
 .pnl-pct{text-align:right;font-family:var(--fd);font-size:11px;color:var(--g400);}
 .pnl-amt{text-align:right;font-family:var(--fd);font-size:12px;}
 .pnl-amt.neg{color:var(--red600);}
@@ -441,9 +441,51 @@ select:focus{border-color:var(--g400);}
   .two-col{grid-template-columns:1fr;}
 }
 
+/* SWIPE NAVIGATION */
+.swipe-nav{background:var(--white);border-bottom:0.5px solid var(--g100);padding:12px 16px 10px;}
+.swipe-nav-leg-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+.swipe-nav-leg-name{font-family:var(--fu);font-weight:bold;font-size:15px;line-height:1.2;}
+.swipe-nav-sub{font-size:8.5px;color:var(--g400);margin-top:2px;}
+.swipe-nav-arrows{display:flex;gap:5px;flex-shrink:0;margin-top:2px;}
+.swipe-nav-btn{width:28px;height:28px;border-radius:50%;border:0.5px solid var(--g100);background:var(--g50);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--g600);cursor:pointer;user-select:none;}
+.swipe-nav-btn:hover{background:var(--g100);}
+.swipe-nav-btn.disabled{opacity:0.3;cursor:default;}
+.swipe-nav-dots{display:flex;gap:5px;justify-content:center;margin-bottom:8px;}
+.swipe-nav-dot{width:5px;height:5px;border-radius:50%;background:var(--g200);transition:all .2s;}
+.swipe-nav-dot.active{background:var(--black);width:14px;border-radius:3px;}
+.swipe-nav-versions{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+.swipe-nav-versions::-webkit-scrollbar{display:none;}
+.swipe-nav-ver{font-size:8.5px;padding:4px 10px;border-radius:99px;border:0.5px solid var(--g100);background:var(--g50);white-space:nowrap;color:var(--g600);cursor:pointer;flex-shrink:0;font-family:var(--fu);}
+.swipe-nav-ver.active{background:var(--black);color:var(--white);border-color:var(--black);}
+/* Hide old drill-controls when swipe nav is shown */
+.drill-controls.hidden{display:none;}
+
 @media(max-width:640px){
-  /* Header */
-  header{height:auto;flex-wrap:wrap;padding:10px 16px;gap:6px;}
+  /* Drill rows — show only name + projected + variance */
+  .drill-party-row,.drill-person-row,.drill-record-row{
+    grid-template-columns:1fr auto auto!important;
+    padding-right:14px!important;
+  }
+  /* Hide budget, invoiced, pending columns (2nd, 3rd, 4th child) */
+  .drill-party-row>*:nth-child(2),
+  .drill-party-row>*:nth-child(3),
+  .drill-party-row>*:nth-child(4),
+  .drill-person-row>*:nth-child(2),
+  .drill-person-row>*:nth-child(3),
+  .drill-person-row>*:nth-child(4),
+  .drill-record-row>*:nth-child(2),
+  .drill-record-row>*:nth-child(3),
+  .drill-record-row>*:nth-child(4){display:none!important;}
+  /* Lock column hidden */
+  .drill-lock{display:none!important;}
+  /* Col header hidden */
+  .drill-col-hdr{display:none!important;}
+  /* Projected — bolder on mobile */
+  .drill-num.proj{font-size:12px!important;font-weight:bold!important;}
+  .drill-num.vpos,.drill-num.vneg{font-size:9px!important;}
+  /* Record label wraps to 2 lines max */
+  .drill-record-label{font-size:9px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+}
   .hdr-left{flex:1;min-width:0;gap:8px;}
   .hdr-client{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
   .hdr-right{display:flex;align-items:center;gap:6px;}
@@ -618,13 +660,41 @@ select:focus{border-color:var(--g400);}
 
   <!-- PAGE 2 -->
   <div id="page-drilldown" class="page">
-    <div class="drill-controls">
+
+    <!-- Swipe navigation (visible on all screen sizes, replaces dropdowns on mobile) -->
+    <div class="swipe-nav" id="swipe-nav" style="margin:-var(--cp) -var(--cp) 16px;margin:-16px -16px 16px;">
+      <div class="swipe-nav-leg-row">
+        <div>
+          <div class="swipe-nav-leg-name" id="swipe-leg-name">—</div>
+        </div>
+        <div class="swipe-nav-arrows">
+          <div class="swipe-nav-btn disabled" id="swipe-prev" onclick="swipeNavLeg(-1)">←</div>
+          <div class="swipe-nav-btn disabled" id="swipe-next" onclick="swipeNavLeg(1)">→</div>
+        </div>
+      </div>
+      <div class="swipe-nav-dots" id="swipe-dots"></div>
+      <div class="swipe-nav-versions" id="swipe-versions"></div>
+    </div>
+
+    <!-- Legacy controls (desktop only, hidden on mobile) -->
+    <div class="drill-controls" id="drill-controls-legacy" style="display:none">
       <div class="drill-leg" id="dd-leg-name">—</div>
       <select id="dd-leg-select" onchange="onLegChange()"></select>
       <select id="dd-ver-select" onchange="onVersionChange()"></select>
       <span id="dd-badge" class="pill blue" style="display:none">Current</span>
       <div style="margin-left:auto;position:relative">
         <button class="leg-filter-trigger" id="dd-show-trigger" onclick="toggleShowPanel(event)">
+          <span id="dd-show-label">All shows</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="leg-filter-panel" id="dd-show-panel" style="display:none;right:0;left:auto;min-width:260px"></div>
+      </div>
+    </div>
+
+    <!-- Show filter (compact, always visible) -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <div style="position:relative">
+        <button class="leg-filter-trigger" onclick="toggleShowPanel(event)">
           <span id="dd-show-label">All shows</span>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
         </button>
@@ -1954,62 +2024,94 @@ function _onShowFilterChanged(){
   });
 }
 
-function buildDrillControls(){
-  const sel=document.getElementById('dd-leg-select');
-  sel.innerHTML=tourLegs.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
-  if(tourLegs.length){
-    selLegId=tourLegs[0].id;
-    buildVersionSelect(selLegId);
-    buildShowSelect(selLegId);
-    buildDrill();
-  }
-}
-
 function buildVersionSelect(lid){
-  // Current is always first, hardcoded — reads live from Tour Legs
-  // Then snapshot versions from Budget Versions, sorted by Version Date desc
   const snapshots=allVersions
     .filter(v=>(v['Tour Leg']||[]).includes(lid))
     .sort((a,b)=>new Date(b['Version Date']||0)-new Date(a['Version Date']||0));
-
   const sel=document.getElementById('dd-ver-select');
-  sel.innerHTML=`<option value="__current__">Current</option>`+
-    snapshots.map(v=>`<option value="${v.id}">${v['Version']||v['Version Date']||'Snapshot'}</option>`).join('');
-
-  // Default to Current
-  sel.value='__current__';
+  if(sel){
+    sel.innerHTML=`<option value="__current__">Current</option>`+
+      snapshots.map(v=>`<option value="${v.id}">${v['Version']||v['Version Date']||'Snapshot'}</option>`).join('');
+    sel.value='__current__';
+  }
   selVersion={id:'__current__',_isLive:true,_legId:lid};
   _applyLegToVersion(lid);
 }
 
 function _applyLegToVersion(lid){
-  // When "Current" selected, pull live data from Tour Legs record
   const leg=tourLegs.find(l=>l.id===lid);
   if(leg) selVersion={...leg,id:'__current__',_isLive:true,_legId:lid};
 }
 
-function onLegChange(){
-  selLegId=document.getElementById('dd-leg-select').value;
+// ── SWIPE NAVIGATION ─────────────────────────────────────────
+function updateSwipeNav(){
+  const idx=tourLegs.findIndex(l=>l.id===selLegId);
+  const total=tourLegs.length;
+
+  // Leg name
+  const leg=tourLegs.find(l=>l.id===selLegId);
+  document.getElementById('swipe-leg-name').textContent=leg?.name||'—';
+
+  // Arrows
+  const prev=document.getElementById('swipe-prev');
+  const next=document.getElementById('swipe-next');
+  prev.classList.toggle('disabled',idx<=0);
+  next.classList.toggle('disabled',idx>=total-1);
+
+  // Dots (max 8 shown)
+  const dotsEl=document.getElementById('swipe-dots');
+  const showDots=Math.min(total,8);
+  dotsEl.innerHTML=Array.from({length:showDots},(_,i)=>{
+    const legIdx=total<=8?i:Math.round(i*(total-1)/(showDots-1));
+    const isActive=total<=8?i===idx:Math.abs(legIdx-idx)<=0;
+    return`<div class="swipe-nav-dot${isActive?' active':''}"></div>`;
+  }).join('');
+
+  // Version pills
+  buildSwipeVersions();
+}
+
+function buildSwipeVersions(){
+  const lid=selLegId;
+  const snapshots=allVersions
+    .filter(v=>(v['Tour Leg']||[]).includes(lid))
+    .sort((a,b)=>new Date(b['Version Date']||0)-new Date(a['Version Date']||0));
+  const isLive=selVersion?._isLive!==false;
+  const curVerId=selVersion?.id;
+
+  const el=document.getElementById('swipe-versions');
+  el.innerHTML=[
+    `<div class="swipe-nav-ver${isLive?' active':''}" onclick="swipeNavVersion('__current__')">Current</div>`,
+    ...snapshots.map(v=>`<div class="swipe-nav-ver${v.id===curVerId?' active':''}" onclick="swipeNavVersion('${v.id}')">${v['Version']||v['Version Date']||'Snapshot'}</div>`)
+  ].join('');
+}
+
+function swipeNavLeg(dir){
+  const idx=tourLegs.findIndex(l=>l.id===selLegId);
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=tourLegs.length)return;
+  selLegId=tourLegs[newIdx].id;
+  // Also sync legacy select
+  const sel=document.getElementById('dd-leg-select');
+  if(sel)sel.value=selLegId;
   buildVersionSelect(selLegId);
   buildShowSelect(selLegId);
+  updateSwipeNav();
   buildDrill();
 }
 
-function onVersionChange(){
-  const val=document.getElementById('dd-ver-select').value;
-  if(val==='__current__'){
+function swipeNavVersion(vid){
+  // Also sync legacy select
+  const sel=document.getElementById('dd-ver-select');
+  if(sel)sel.value=vid;
+  if(vid==='__current__'){
     _applyLegToVersion(selLegId);
   } else {
-    // Snapshot — read from Budget Versions, but actuals still from Tour Legs
-    const snap=allVersions.find(v=>v.id===val);
+    const snap=allVersions.find(v=>v.id===vid);
     const leg=tourLegs.find(l=>l.id===selLegId);
     if(snap&&leg){
-      // Merge: snapshot budget fields + live actuals from Tour Legs
       selVersion={
-        ...snap,
-        _isLive:false,
-        _legId:selLegId,
-        // Live actuals always from Tour Legs
+        ...snap,_isLive:false,_legId:selLegId,
         'FLIGHTS: Actual (Locked)':leg['FLIGHTS: Actual (Locked)'],
         'HOTELS: Actual (Locked)':leg['HOTELS: Actual (Locked)'],
         'WAGES: Actual (Locked)':leg['WAGES: Actual (Locked)'],
@@ -2022,6 +2124,68 @@ function onVersionChange(){
       };
     }
   }
+  buildSwipeVersions();
+  buildDrill();
+}
+
+// Touch swipe on drilldown page
+(function(){
+  let tx=0;
+  document.addEventListener('touchstart',e=>{
+    if(document.getElementById('page-drilldown')?.classList.contains('active')){
+      tx=e.touches[0].clientX;
+    }
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!document.getElementById('page-drilldown')?.classList.contains('active'))return;
+    const dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>60){swipeNavLeg(dx<0?1:-1);}
+  },{passive:true});
+})();
+
+function buildDrillControls(){
+  const sel=document.getElementById('dd-leg-select');
+  if(sel) sel.innerHTML=tourLegs.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  if(tourLegs.length){
+    selLegId=tourLegs[0].id;
+    buildVersionSelect(selLegId);
+    buildShowSelect(selLegId);
+    updateSwipeNav();
+    buildDrill();
+  }
+}
+
+function onLegChange(){
+  selLegId=document.getElementById('dd-leg-select').value;
+  buildVersionSelect(selLegId);
+  buildShowSelect(selLegId);
+  updateSwipeNav();
+  buildDrill();
+}
+
+function onVersionChange(){
+  const val=document.getElementById('dd-ver-select').value;
+  if(val==='__current__'){
+    _applyLegToVersion(selLegId);
+  } else {
+    const snap=allVersions.find(v=>v.id===val);
+    const leg=tourLegs.find(l=>l.id===selLegId);
+    if(snap&&leg){
+      selVersion={
+        ...snap,_isLive:false,_legId:selLegId,
+        'FLIGHTS: Actual (Locked)':leg['FLIGHTS: Actual (Locked)'],
+        'HOTELS: Actual (Locked)':leg['HOTELS: Actual (Locked)'],
+        'WAGES: Actual (Locked)':leg['WAGES: Actual (Locked)'],
+        'PRODUCTION: Actual (Locked)':leg['PRODUCTION: Actual (Locked)'],
+        'GROUND: Actual (Locked)':leg['GROUND: Actual (Locked)'],
+        'MEDIA: Actual (Locked)':leg['MEDIA: Actual (Locked)'],
+        'MISC: Actual (Locked)':leg['MISC: Actual (Locked)'],
+        'ALL TOUR COSTS: Actual (Locked)':leg['ALL TOUR COSTS: Actual (Locked)'],
+        'ALL TOUR COSTS: % Locked':leg['ALL TOUR COSTS: % Locked'],
+      };
+    }
+  }
+  buildSwipeVersions();
   buildDrill();
 }
 function onDdSlider(v){ddTarget=v/100;document.getElementById('dd-slider-val').textContent=v+'%';buildDrill();}
@@ -2029,10 +2193,12 @@ function onDdSlider(v){ddTarget=v/100;document.getElementById('dd-slider-val').t
 function drillTo(lid){
   if(!lid||lid==='null')return;
   showPage('drilldown');
-  document.getElementById('dd-leg-select').value=lid;
+  const sel=document.getElementById('dd-leg-select');
+  if(sel)sel.value=lid;
   selLegId=lid;
   buildVersionSelect(lid);
   buildShowSelect(lid);
+  updateSwipeNav();
   buildDrill();
 }
 
@@ -3098,11 +3264,21 @@ function renderRecord(r,cfg,catKey){
   if(catKey==='Flights'){
     const dashName=cfg.fids.dashName?String(f[cfg.fids.dashName]||''):'';
     if(dashName){
-      label=dashName;
-    }else{
+      // Parse into short format: FROM→TO · Direction · Status
+      // dashName format varies — try to extract route and direction from it
+      const parts=dashName.split('//').map(s=>s.trim());
+      if(parts.length>=3){
+        const route=parts[1]||''; // e.g. "LAX → HND"
+        const dir=parts[parts.length-2]||''; // INBOUND or OUTBOUND
+        const status=parts[parts.length-1]||'';
+        label=`${route} · ${dir}${status?' · '+status:''}`;
+      } else {
+        label=dashName;
+      }
+    } else {
       const recName=String(f[cfg.fids.name]||'');
-      const parts=recName.split('_');
-      label=`${parts.length>=3?parts.slice(2,-2).join(' '):recName} · ${parts[parts.length-1]||''}`;
+      const nameParts=recName.split('_');
+      label=`${nameParts.length>=3?nameParts.slice(2,-2).join(' '):recName} · ${nameParts[nameParts.length-1]||''}`;
     }
   }else if(catKey==='Hotels'){
     const recName=String(f[cfg.fids.name]||'');
