@@ -2199,7 +2199,7 @@ function buildDrill(){
   const totalInvoiced=c.costsAct,totalPending=c.costsPd,totalProj=totalInvoiced+totalPending;
   const totalVar=c.costs-totalProj;
   const summaryHtml=`
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-bottom:0.5px solid var(--g100)">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr) 16px 1fr;gap:0;border-bottom:0.5px solid var(--g100)">
       <div style="padding:12px var(--cp);border-right:0.5px solid var(--g100)">
         <div class="kpi-label" style="margin-bottom:4px">Total Budget</div>
         <div style="font-family:var(--fd);font-weight:bold;font-size:14px">${D(c.costs)}</div>
@@ -2220,6 +2220,7 @@ function buildDrill(){
         <div class="kpi-label" style="margin-bottom:4px">Variance</div>
         <div style="font-family:var(--fd);font-weight:bold;font-size:14px;color:${totalVar>0?'var(--green600)':totalVar<0?'var(--red600)':'inherit'}">${totalVar>0?'+':totalVar<0?'−':''}${D(Math.abs(totalVar))}</div>
       </div>
+      <div></div>
       <div style="padding:12px var(--cp)">
         <div class="kpi-label" style="margin-bottom:8px">% Locked</div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -2274,8 +2275,7 @@ function buildDrill(){
       <span class="cost-totals-num" style="font-weight:bold">${D(totalProj)}</span>
       <span class="cost-totals-num" style="color:${totalVar>0?'var(--green600)':totalVar<0?'var(--red600)':'inherit'}">${totalVar>0?'+':totalVar<0?'−':''}${D(Math.abs(totalVar))}</span>
       <div style="display:flex;align-items:center;justify-content:center">${horseshoe(c.costsPct,'var(--black)')}</div>
-    </div>
-    ${c.wht>0?`<div style="padding:9px var(--cp);border-top:0.5px solid var(--g100);font-style:italic;color:var(--g600);font-size:11px;display:flex;justify-content:space-between"><span>WHT (ex-line)</span><span style="font-family:var(--fd)">−${D(c.wht)}</span></div>`:''}`;
+    </div>`;
 
     return colHdr+rows+totalsRow;
   }
@@ -2319,6 +2319,51 @@ function buildDrill(){
   }
 }
 
+// Maps party group name to which CAT_KEYS it contains
+const PARTY_CAT_MAP={
+  Artist:   ['Flights','Hotels','Wages'],
+  Management:['Flights','Hotels','Wages'],
+  Media:    ['Flights','Hotels','Wages','Media'],
+  Production:['Flights','Hotels','Wages','Production','Ground','Misc'],
+  Other:    ['Flights','Hotels','Wages','Ground','Misc'],
+};
+
+// Party-scoped filter for loadCatDetail — filters by both leg/show AND party
+function partyFilterFormula(catKey,partyGroup,legName,selShowIds,showNone){
+  const isTourCosts=['Production','Ground','Media','Misc'].includes(catKey);
+  if(isTourCosts){
+    // Tour cost records don't have a party field — filter by dept and leg only
+    const dept=CAT_TABLES[catKey]?.deptFilter||catKey;
+    if(showNone)return encodeURIComponent('FALSE()');
+    if(selShowIds&&selShowIds.size>0){
+      const showNames=[...(window._showEvents||[])].filter(e=>selShowIds.has(e.id)).map(e=>e.name);
+      const sf=showNames.length===1?`FIND("${showNames[0]}",ARRAYJOIN({Tour Event}))`:
+               `OR(${showNames.map(n=>`FIND("${n}",ARRAYJOIN({Tour Event}))`).join(',')})`;
+      return encodeURIComponent(`AND(${sf},{Department}="${dept}")`);
+    }
+    return encodeURIComponent(`AND(FIND("${legName}",ARRAYJOIN({Tour Leg})),{Department}="${dept}")`);
+  }
+  // F/H/W: filter by leg/show + party group
+  const partyFilters={
+    Artist:`{Party}="Artist"`,
+    Management:`{Party}="Management"`,
+    Media:`OR({Party}="Media-A",{Party}="Media-Core",{Party}="Media-Aux")`,
+    Production:`OR({Party}="Prod-Core",{Party}="Prod-Aux",{Party}="Prod-Vendors")`,
+    Other:`AND(NOT({Party}="Artist"),NOT({Party}="Management"),NOT(FIND("Media",{Party})),NOT(FIND("Prod",{Party})))`,
+  };
+  const pf=partyFilters[partyGroup]||'TRUE()';
+  if(showNone)return encodeURIComponent('FALSE()');
+  if(selShowIds&&selShowIds.size>0){
+    const showNames=[...(window._showEvents||[])].filter(e=>selShowIds.has(e.id)).map(e=>e.name);
+    const sf=showNames.length===1?`FIND("${showNames[0]}",ARRAYJOIN({Event}))`:
+             `OR(${showNames.map(n=>`FIND("${n}",ARRAYJOIN({Event}))`).join(',')})`;
+    return encodeURIComponent(`AND(${sf},${pf})`);
+  }
+  return encodeURIComponent(`AND(FIND("${legName}",ARRAYJOIN({Tour Leg})),${pf})`);
+}
+
+let partyBodyCounter=0;
+
 function renderPartyDetail(rows){
   const COL_GRID='1fr 80px 80px 80px 80px 80px 48px';
   const colHdr=`<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:${COL_GRID}">
@@ -2336,9 +2381,11 @@ function renderPartyDetail(rows){
     const variance=r.budget-proj;
     const pct=r.budget>0?(r.lockedBudget/r.budget):0;
     const varCell=variance===0?DASH:variance>0?`<span style="color:var(--green600)">+${D(variance)}</span>`:`<span style="color:var(--red600)">−${D(Math.abs(variance))}</span>`;
-    return`<div class="cost-cat-row" style="grid-template-columns:${COL_GRID};cursor:default">
+    const bid=`party-body-${partyBodyCounter++}`;
+    return`<div class="cost-cat-row" style="grid-template-columns:${COL_GRID}" onclick="togglePartyRow('${bid}','${r.name}')">
       <div class="cost-cat-name">
-        <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;margin-right:6px"></span>
+        <span class="cost-chevron" id="chev-${bid}">▶</span>
+        <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;margin-right:4px"></span>
         ${r.name}
       </div>
       <div class="cost-cat-num">${D(r.budget)}</div>
@@ -2347,7 +2394,8 @@ function renderPartyDetail(rows){
       <div class="cost-cat-num" style="font-weight:bold">${D(proj)}</div>
       <div class="cost-cat-num">${varCell}</div>
       <div style="display:flex;align-items:center;justify-content:center">${horseshoe(pct,r.color)}</div>
-    </div>`;
+    </div>
+    <div class="cost-body" id="${bid}"></div>`;
   }).join('');
 
   const tot=rows.reduce((a,r)=>({budget:a.budget+r.budget,invoiced:a.invoiced+r.invoiced,pending:a.pending+r.pending,lockedBudget:a.lockedBudget+r.lockedBudget}),{budget:0,invoiced:0,pending:0,lockedBudget:0});
@@ -2365,6 +2413,62 @@ function renderPartyDetail(rows){
   </div>`;
 
   return colHdr+rowsHtml+totalsRow;
+}
+
+async function togglePartyRow(bid,partyName){
+  const body=document.getElementById(bid);
+  const chev=document.getElementById('chev-'+bid);
+  if(!body)return;
+  const isOpen=body.classList.contains('open');
+  if(isOpen){body.classList.remove('open');if(chev)chev.classList.remove('open');return;}
+  body.classList.add('open');
+  if(chev)chev.classList.add('open');
+  if(body.dataset.loaded)return;
+  body.dataset.loaded='1';
+
+  const legName=tourLegs.find(l=>l.id===selLegId)?.name||'';
+  const catKeys=PARTY_CAT_MAP[partyName]||['Flights','Hotels','Wages'];
+  const curShowIds=selShowIds; // capture current Set reference
+  const curShowNone=window._showsNone;
+
+  body.innerHTML='<div style="padding:10px 16px;font-size:11px;color:var(--g400)">Loading...</div>';
+
+  let html='';
+  for(const key of catKeys){
+    const cfg=CAT_TABLES[key];
+    if(!cfg)continue;
+    const formula=partyFilterFormula(key,partyName,legName,curShowIds.size>0?curShowIds:null,curShowNone);
+    try{
+      const fieldIds=Object.values(cfg.fids);
+      const recs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
+      if(!recs.length)continue;
+      const isTourCosts=['Production','Ground','Media','Misc'].includes(key);
+      const subHtml=isTourCosts?renderProductionDetail(recs,cfg):renderPersonDetail(recs,cfg,key);
+      const color=CAT_COLORS[key]||'var(--g400)';
+      html+=`<div style="border-top:0.5px solid var(--g100)">
+        <div style="padding:6px 16px;background:var(--g50);font-family:var(--fu);font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:var(--g400);display:flex;align-items:center;gap:6px">
+          <span style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block"></span>${key}
+        </div>
+        ${subHtml}
+      </div>`;
+    }catch(e){
+      html+=`<div style="padding:8px 16px;font-size:11px;color:var(--red600)">Error loading ${key}: ${e.message}</div>`;
+    }
+  }
+  body.innerHTML=html||'<div style="padding:10px 16px;font-size:11px;color:var(--g400)">No records found.</div>';
+
+  body.querySelectorAll('[data-party-toggle]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const target=body.querySelector('#'+el.dataset.partyToggle);
+      if(target){target.classList.toggle('drill-open');const c=el.querySelector('.drill-chev');if(c)c.classList.toggle('open');}
+    });
+  });
+  body.querySelectorAll('[data-person-toggle]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const target=body.querySelector('#'+el.dataset.personToggle);
+      if(target){target.classList.toggle('drill-open');const c=el.querySelector('.drill-chev');if(c)c.classList.toggle('open');}
+    });
+  });
 }
 
 function toggleCat(i){
@@ -2477,54 +2581,70 @@ const PARTY_COLORS={
 
 // ── CHART VIEWS ──────────────────────────────────────────────────────────────
 function renderBarChart(rows,title){
-  // rows: [{name, budget, invoiced, pending, color}]
-  const maxBudget=Math.max(...rows.map(r=>r.budget),1);
-  const COL_GRID='1fr 80px 80px 80px 80px 80px 48px';
-  const colHdr=`<div class="cost-col-header" style="padding-left:var(--cp);grid-template-columns:${COL_GRID}">
-    <span class="cost-col-label">${title}</span>
-    <span class="cost-col-label">Budget</span>
-    <span class="cost-col-label">Invoiced</span>
-    <span class="cost-col-label">Pending</span>
-    <span class="cost-col-label">Projected</span>
-    <span class="cost-col-label">Variance</span>
-    <span class="cost-col-label" style="text-align:center">% Locked</span>
-  </div>`;
+  const data=rows.filter(r=>r.budget>0);
+  const maxVal=Math.max(...data.map(r=>Math.max(r.budget,r.invoiced+r.pending)),1);
 
-  const rowsHtml=rows.filter(r=>r.budget>0).map(r=>{
+  // Axis labels
+  const steps=5;
+  const step=Math.ceil(maxVal/steps/10000)*10000;
+  const axisMax=step*steps;
+  const axisTicks=Array.from({length:steps+1},(_,i)=>i*step);
+
+  const barH=18, rowGap=14, labelW=96;
+  const chartW=`calc(100% - ${labelW+16}px)`;
+
+  const fmt=v=>v===0?'$0k':v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v;
+
+  const barsHtml=data.map(r=>{
     const proj=r.invoiced+r.pending;
+    const budW=(r.budget/axisMax*100).toFixed(2);
+    const invW=(r.invoiced/axisMax*100).toFixed(2);
+    const pendW=(r.pending/axisMax*100).toFixed(2);
     const variance=r.budget-proj;
-    const pct=r.budget>0?r.lockedBudget/r.budget:0;
-    const varCell=variance===0?DASH:variance>0?`<span style="color:var(--green600)">+${D(variance)}</span>`:`<span style="color:var(--red600)">−${D(Math.abs(variance))}</span>`;
-    // Two-layer bar: budget (grey track), invoiced (solid), pending (lighter)
-    const invW=(r.budget>0?Math.min(100,r.invoiced/r.budget*100):0).toFixed(1);
-    const pendW=(r.budget>0?Math.min(100,r.pending/r.budget*100):0).toFixed(1);
-    return`<div style="padding:10px var(--cp);border-bottom:0.5px solid var(--g100)">
-      <div style="display:grid;grid-template-columns:${COL_GRID};align-items:center;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
-          <span style="font-family:var(--fu);font-size:12px;font-weight:bold">${r.name}</span>
+    const varStr=variance>0?`<span style="color:var(--green600);font-size:9px">+${D(variance)}</span>`:
+                 variance<0?`<span style="color:var(--red600);font-size:9px">−${D(Math.abs(variance))}</span>`:'';
+    return`<div style="display:flex;align-items:center;gap:12px;margin-bottom:${rowGap}px">
+      <div style="width:${labelW}px;flex-shrink:0;text-align:right">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:5px">
+          <span style="width:7px;height:7px;border-radius:50%;background:${r.color};display:inline-block;flex-shrink:0"></span>
+          <span style="font-family:var(--fu);font-size:11px;color:var(--black)">${r.name}</span>
         </div>
-        <div class="cost-cat-num">${D(r.budget)}</div>
-        <div class="cost-cat-num">${r.invoiced>0?D(r.invoiced):DASH}</div>
-        <div class="cost-cat-num" style="font-style:italic;color:var(--g400)">${r.pending>0?D(r.pending):DASH}</div>
-        <div class="cost-cat-num" style="font-weight:bold">${D(proj)}</div>
-        <div class="cost-cat-num">${varCell}</div>
-        <div style="display:flex;align-items:center;justify-content:center">${horseshoe(pct,r.color)}</div>
+        <div style="font-size:9px;color:var(--g400);margin-top:1px">${varStr}</div>
       </div>
-      <div style="position:relative;height:8px;background:var(--g100);border-radius:4px;overflow:hidden">
-        <div style="position:absolute;left:0;top:0;height:100%;width:${invW}%;background:${r.color};border-radius:4px 0 0 4px;opacity:0.9"></div>
-        <div style="position:absolute;left:${invW}%;top:0;height:100%;width:${pendW}%;background:${r.color};border-radius:0 4px 4px 0;opacity:0.35"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:3px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-family:var(--fd);font-size:8px;color:var(--g400)">${r.invoiced>0?D(r.invoiced)+' invoiced':''}</span>
-          <span style="font-family:var(--fd);font-size:8px;color:var(--g400);font-style:italic">${r.pending>0?D(r.pending)+' pending':''}</span>
+      <div style="flex:1;position:relative">
+        <!-- Budget bar (grey track) -->
+        <div style="position:relative;height:${barH}px;background:var(--g50);border-radius:3px;overflow:hidden;margin-bottom:3px">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${budW}%;background:var(--g200);border-radius:3px"></div>
+          <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-family:var(--fd);font-size:9px;color:var(--g400)">${D(r.budget)}</div>
         </div>
-        <span style="font-family:var(--fd);font-size:8px;color:var(--g400)">${D(r.budget)} budget</span>
+        <!-- Projected bar: invoiced (solid) + pending (light) -->
+        <div style="position:relative;height:${barH}px;background:var(--g50);border-radius:3px;overflow:hidden">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${invW}%;background:${r.color};border-radius:3px 0 0 3px;opacity:0.9"></div>
+          <div style="position:absolute;left:${invW}%;top:0;height:100%;width:${pendW}%;background:${r.color};border-radius:0 3px 3px 0;opacity:0.3"></div>
+          <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-family:var(--fd);font-size:9px;color:var(--black);font-weight:bold">${D(proj)}</div>
+        </div>
       </div>
     </div>`;
   }).join('');
-  return colHdr+rowsHtml;
+
+  // X-axis
+  const axisHtml=`<div style="display:flex;margin-left:${labelW+12}px;margin-top:4px">
+    ${axisTicks.map(v=>`<div style="flex:1;text-align:${v===0?'left':'center'};font-family:var(--fd);font-size:8px;color:var(--g400)">${fmt(v)}</div>`).join('')}
+  </div>`;
+
+  // Legend
+  const legendHtml=`<div style="display:flex;gap:16px;margin-left:${labelW+12}px;margin-top:12px;padding-top:10px;border-top:0.5px solid var(--g100)">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:20px;height:8px;background:var(--g200);border-radius:2px"></div>
+      <span style="font-family:var(--fu);font-size:9px;color:var(--g400)">Budget</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:14px;height:8px;background:var(--blue600);border-radius:2px 0 0 2px;opacity:0.9;display:inline-block"></div><div style="width:6px;height:8px;background:var(--blue600);border-radius:0 2px 2px 0;opacity:0.3;display:inline-block;margin-left:1px"></div>
+      <span style="font-family:var(--fu);font-size:9px;color:var(--g400)">Projected (invoiced + pending)</span>
+    </div>
+  </div>`;
+
+  return`<div style="padding:20px var(--cp) 16px">${barsHtml}${axisHtml}${legendHtml}</div>`;
 }
 
 function renderPieChart(rows,title){
@@ -2553,17 +2673,15 @@ function renderPieChart(rows,title){
   const legendItems=data.map(r=>{
     const proj=r.invoiced+r.pending;
     const variance=r.budget-proj;
-    const varStr=variance===0?'':variance>0?`<span style="color:var(--green600);font-size:9px">+${D(variance)}</span>`:`<span style="color:var(--red600);font-size:9px">−${D(Math.abs(variance))}</span>`;
-    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid var(--g50)">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="width:10px;height:10px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
+    const varStr=variance===0?'':variance>0?`<span style="color:var(--green600)">+${D(variance)}</span>`:`<span style="color:var(--red600)">−${D(Math.abs(variance))}</span>`;
+    return`<div style="display:grid;grid-template-columns:1fr 44px 80px 64px;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--g50);gap:8px">
+      <div style="display:flex;align-items:center;gap:7px">
+        <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
         <span style="font-family:var(--fu);font-size:11px">${r.name}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <span style="font-family:var(--fd);font-size:10px;color:var(--g400)">${(proj/totalProj*100).toFixed(1)}%</span>
-        <span style="font-family:var(--fd);font-size:11px;font-weight:bold;min-width:68px;text-align:right">${D(proj)}</span>
-        ${varStr}
-      </div>
+      <span style="font-family:var(--fd);font-size:10px;color:var(--g400);text-align:right">${(proj/totalProj*100).toFixed(1)}%</span>
+      <span style="font-family:var(--fd);font-size:11px;font-weight:bold;text-align:right">${D(proj)}</span>
+      <span style="font-family:var(--fd);font-size:9px;text-align:right">${varStr}</span>
     </div>`;
   }).join('');
 
