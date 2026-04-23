@@ -461,12 +461,12 @@ select:focus{border-color:var(--g400);}
 .drill-controls.hidden{display:none;}
 
 @media(max-width:640px){
-  /* Drill rows — show only name + projected + variance */
+  /* Drill rows — name | projected | variance only */
   .drill-party-row,.drill-person-row,.drill-record-row{
-    grid-template-columns:1fr auto auto!important;
-    padding-right:14px!important;
+    grid-template-columns:1fr 76px 60px!important;
+    overflow:hidden;
   }
-  /* Hide budget, invoiced, pending columns (2nd, 3rd, 4th child) */
+  /* Hide budget (2), invoiced (3), pending (4) */
   .drill-party-row>*:nth-child(2),
   .drill-party-row>*:nth-child(3),
   .drill-party-row>*:nth-child(4),
@@ -476,16 +476,22 @@ select:focus{border-color:var(--g400);}
   .drill-record-row>*:nth-child(2),
   .drill-record-row>*:nth-child(3),
   .drill-record-row>*:nth-child(4){display:none!important;}
-  /* Lock column hidden */
+  /* Hide lock/horseshoe (7th child + .drill-lock class) */
+  .drill-party-row>*:nth-child(7),
+  .drill-person-row>*:nth-child(7),
+  .drill-record-row>*:nth-child(7),
   .drill-lock{display:none!important;}
-  /* Col header hidden */
+  /* Hide drill col headers */
   .drill-col-hdr{display:none!important;}
-  /* Projected — bolder on mobile */
+  /* Projected bolder */
   .drill-num.proj{font-size:12px!important;font-weight:bold!important;}
-  .drill-num.vpos,.drill-num.vneg{font-size:9px!important;}
-  /* Record label wraps to 2 lines max */
+  .drill-num.vpos,.drill-num.vneg,.drill-num.dim{font-size:9px!important;}
+  /* Record label: 2 lines max */
   .drill-record-label{font-size:9px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 }
+@media(max-width:640px){
+  /* Header */
+  header{height:auto;flex-wrap:wrap;padding:10px 16px;gap:6px;}
   .hdr-left{flex:1;min-width:0;gap:8px;}
   .hdr-client{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
   .hdr-right{display:flex;align-items:center;gap:6px;}
@@ -500,25 +506,32 @@ select:focus{border-color:var(--g400);}
   .kpi-row-6{grid-template-columns:repeat(2,1fr);}
   .kpi-value{font-size:14px;}
 
-  /* Drill controls — stack vertically */
+  /* Drill controls */
   .drill-controls{flex-direction:column;align-items:flex-start;gap:6px;}
   .drill-leg{font-size:13px;}
   select{width:100%;font-size:12px;}
 
-  /* Data table — hide columns beyond 7 on small screens */
+  /* Data table — hide columns beyond 7 */
   .data-table th:nth-child(n+8),
   .data-table td:nth-child(n+8){display:none;}
 
   /* Auth card */
   .auth-card{width:calc(100vw - 32px);padding:24px 20px;}
 
-  /* Cost breakdown — on mobile show Category + Budget + Actual only, hide locked/variance/pct */
+  /* KPI cards — 2 col, solo card spans full width */
+  .dd-kpi-row{grid-template-columns:1fr 1fr!important;}
+  .dd-kpi-row>.dd-kpi-card:first-child{grid-column:1/-1;}
+  .kc-solo{padding:12px var(--cp);}
+  .kc-solo-val{font-size:24px;}
+  .kc-hero-val{font-size:18px;}
+
+  /* Cost breakdown — show Category + Budget + Invoiced, hide rest */
   .cost-col-header,
   .cost-cat-row,
-  .cost-totals{grid-template-columns:1fr 80px 80px !important;}
+  .cost-totals{grid-template-columns:1fr 72px 72px!important;}
   .cost-col-header>*:nth-child(n+4),
   .cost-cat-row>*:nth-child(n+4),
-  .cost-totals>*:nth-child(n+4){display:none;}
+  .cost-totals>*:nth-child(n+4){display:none!important;}
   .cost-cat-num,.cost-coa-num,.cost-totals-num{font-size:11px;}
   .cost-totals-label{font-size:8px;}
 }
