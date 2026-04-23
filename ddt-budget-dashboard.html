@@ -1666,15 +1666,48 @@ function buildOverview(){
   const makeCard=({c,lid,lname})=>{
     const at=c.margin>=ovTarget;
     const mc=at?'green':c.margin>=ovTarget-0.05?'amber':'red';
+    const costsIP=c.costsAct+c.costsPd;
+    const costsIPVar=c.costs>0?c.costs-costsIP:null;
+    const netIP=c.gross-c.comm-c.alloc-costsIP;
+    const marginIP=c.gross>0?netIP/c.gross:0;
+    const atIP=marginIP>=ovTarget;
+    const mcIP=atIP?'green':marginIP>=ovTarget-0.05?'amber':'red';
     return`<div class="leg-card">
       <div class="leg-card-header"><div class="leg-card-name">${lname}</div>${pill(c.margin,ovTarget)}</div>
       <div class="leg-card-grid">
-        <div class="leg-card-item"><div class="leg-card-label">Gross fee</div><div class="leg-card-value">${D(c.gross)}</div></div>
-        <div class="leg-card-item"><div class="leg-card-label">Commission</div><div class="leg-card-value">${D(c.comm)}</div></div>
-        <div class="leg-card-item"><div class="leg-card-label">Allocations</div><div class="leg-card-value">${D(c.alloc)}</div></div>
-        <div class="leg-card-item"><div class="leg-card-label">Tour costs</div><div class="leg-card-value">${D(c.costs)}</div></div>
-        <div class="leg-card-item"><div class="leg-card-label">Net profit</div><div class="leg-card-value ${mc}">${D(c.net)}</div></div>
-        <div class="leg-card-item"><div class="leg-card-label">Margin</div><div class="leg-card-value ${mc}">${P(c.margin)}</div></div>
+        <div class="leg-card-item">
+          <div class="leg-card-label">Gross fee</div>
+          <div class="leg-card-value">${D(c.gross)}</div>
+        </div>
+        <div class="leg-card-item">
+          <div class="leg-card-label">Commission</div>
+          <div class="leg-card-value">${D(c.comm)}</div>
+        </div>
+        <div class="leg-card-item">
+          <div class="leg-card-label">Allocations</div>
+          <div class="leg-card-value">${D(c.alloc)}</div>
+        </div>
+        <div class="leg-card-item">
+          <div class="leg-card-label">Tour costs <span style="font-weight:normal;color:var(--g400);font-size:7px;letter-spacing:0;text-transform:none">(budget)</span></div>
+          <div class="leg-card-value">${D(c.costs)}</div>
+        </div>
+        <div class="leg-card-item">
+          <div class="leg-card-label">Net profit <span style="font-weight:normal;color:var(--g400);font-size:7px;letter-spacing:0;text-transform:none">(budget)</span></div>
+          <div class="leg-card-value ${mc}">${D(c.net)}</div>
+        </div>
+        <div class="leg-card-item">
+          <div class="leg-card-label">Margin <span style="font-weight:normal;color:var(--g400);font-size:7px;letter-spacing:0;text-transform:none">(budget)</span></div>
+          <div class="leg-card-value ${mc}">${P(c.margin)}</div>
+        </div>
+        ${costsIP>0?`
+        <div class="leg-card-item">
+          <div class="leg-card-label">Tour costs <span style="font-weight:normal;color:var(--g400);font-size:7px;letter-spacing:0;text-transform:none">(inv+pend)</span></div>
+          <div class="leg-card-value" style="${costsIPVar!==null&&costsIPVar>0?'color:var(--green800)':costsIPVar!==null&&costsIPVar<0?'color:var(--red800)':''}">${D(costsIP)}</div>
+        </div>
+        <div class="leg-card-item">
+          <div class="leg-card-label">Net profit <span style="font-weight:normal;color:var(--g400);font-size:7px;letter-spacing:0;text-transform:none">(inv+pend)</span></div>
+          <div class="leg-card-value ${mcIP}">${D(netIP)}</div>
+        </div>`:''}
         ${c.addRev>0?`<div class="leg-card-item"><div class="leg-card-label">Addl. revenue</div><div class="leg-card-value amber">${D(c.addRev)}</div></div>`:''}
         ${c.wht>0?`<div class="leg-card-item"><div class="leg-card-label">WHT</div><div class="leg-card-value">${D(c.wht)}</div></div>`:''}
       </div>
@@ -2332,7 +2365,6 @@ const PARTY_CAT_MAP={
 function partyFilterFormula(catKey,partyGroup,legName,selShowIds,showNone){
   const isTourCosts=['Production','Ground','Media','Misc'].includes(catKey);
   if(isTourCosts){
-    // Tour cost records don't have a party field — filter by dept and leg only
     const dept=CAT_TABLES[catKey]?.deptFilter||catKey;
     if(showNone)return encodeURIComponent('FALSE()');
     if(selShowIds&&selShowIds.size>0){
@@ -2343,20 +2375,22 @@ function partyFilterFormula(catKey,partyGroup,legName,selShowIds,showNone){
     }
     return encodeURIComponent(`AND(FIND("${legName}",ARRAYJOIN({Tour Leg})),{Department}="${dept}")`);
   }
-  // F/H/W: filter by leg/show + party group
+  // Flights/Hotels/Wages — each has a different party field name
+  const partyField=catKey==='Hotels'?'Party Group':'Party';
   const partyFilters={
-    Artist:`{Party}="Artist"`,
-    Management:`{Party}="Management"`,
-    Media:`OR({Party}="Media-A",{Party}="Media-Core",{Party}="Media-Aux")`,
-    Production:`OR({Party}="Prod-Core",{Party}="Prod-Aux",{Party}="Prod-Vendors")`,
-    Other:`AND(NOT({Party}="Artist"),NOT({Party}="Management"),NOT(FIND("Media",{Party})),NOT(FIND("Prod",{Party})))`,
+    Artist:`{${partyField}}="Artist"`,
+    Management:`{${partyField}}="Management"`,
+    Media:`OR({${partyField}}="Media-A",{${partyField}}="Media-Core",{${partyField}}="Media-Aux")`,
+    Production:`OR({${partyField}}="Prod-Core",{${partyField}}="Prod-Aux",{${partyField}}="Prod-Vendors")`,
+    Other:`AND(NOT({${partyField}}="Artist"),NOT({${partyField}}="Management"),NOT(FIND("Media",{${partyField}})),NOT(FIND("Prod",{${partyField}})))`,
   };
   const pf=partyFilters[partyGroup]||'TRUE()';
   if(showNone)return encodeURIComponent('FALSE()');
   if(selShowIds&&selShowIds.size>0){
+    const evField=catKey==='Wages'?'Event':'Event';
     const showNames=[...(window._showEvents||[])].filter(e=>selShowIds.has(e.id)).map(e=>e.name);
-    const sf=showNames.length===1?`FIND("${showNames[0]}",ARRAYJOIN({Event}))`:
-             `OR(${showNames.map(n=>`FIND("${n}",ARRAYJOIN({Event}))`).join(',')})`;
+    const sf=showNames.length===1?`FIND("${showNames[0]}",ARRAYJOIN({${evField}}))`:
+             `OR(${showNames.map(n=>`FIND("${n}",ARRAYJOIN({${evField}}))`).join(',')})`;
     return encodeURIComponent(`AND(${sf},${pf})`);
   }
   return encodeURIComponent(`AND(FIND("${legName}",ARRAYJOIN({Tour Leg})),${pf})`);
@@ -2443,11 +2477,11 @@ async function togglePartyRow(bid,partyName){
       const recs=await fetchAllByIdFiltered(cfg.tid,fieldIds,formula);
       if(!recs.length)continue;
       const isTourCosts=['Production','Ground','Media','Misc'].includes(key);
-      const subHtml=isTourCosts?renderProductionDetail(recs,cfg):renderPersonDetail(recs,cfg,key);
+      const subHtml=isTourCosts?renderProductionDetail(recs,cfg):renderPersonDetailFlat(recs,cfg,key);
       const color=CAT_COLORS[key]||'var(--g400)';
       html+=`<div style="border-top:0.5px solid var(--g100)">
-        <div style="padding:6px 16px;background:var(--g50);font-family:var(--fu);font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:var(--g400);display:flex;align-items:center;gap:6px">
-          <span style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block"></span>${key}
+        <div style="padding:9px 16px 7px;background:var(--g50);font-family:var(--fu);font-size:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;color:var(--g600);display:flex;align-items:center;gap:7px;border-bottom:0.5px solid var(--g100)">
+          <span style="width:7px;height:7px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>${key}
         </div>
         ${subHtml}
       </div>`;
@@ -2894,6 +2928,55 @@ function horseshoe(pct,color='var(--black)'){
       stroke-linecap="round"
       stroke-dasharray="${fill.toFixed(1)} ${(circ-fill).toFixed(1)}" transform="rotate(135,${cx},${cy})"/>
   </svg>`;
+}
+
+// Flat version for party drill-down — skips party grouping, goes straight to Person > Record
+function renderPersonDetailFlat(recs,cfg,catKey){
+  const persons=new Map();
+  recs.forEach(r=>{
+    const f=r.fields||{};
+    const nameField=String(f[cfg.fids.name]||'');
+    let person='Unknown';
+    if(catKey==='Flights'||catKey==='Hotels'){
+      const parts=nameField.split('_');
+      person=parts.length>=2?parts[parts.length-2]:nameField;
+    }else if(catKey==='Wages'){
+      const match=nameField.match(/—\s*(.+)$/);
+      person=match?match[1].trim():nameField;
+    }
+    const budget=Number(f[cfg.fids.budget]||0);
+    const invoiced=Number(f[cfg.fids.actual]||0);
+    const finalised=f[cfg.fids.finalised]===true;
+    const pending=finalised?0:budget;
+    const lockedBudget=finalised?budget:0;
+    if(!persons.has(person))persons.set(person,{budget:0,invoiced:0,pending:0,lockedBudget:0,records:[]});
+    const pd=persons.get(person);
+    pd.budget+=budget; pd.invoiced+=invoiced; pd.pending+=pending; pd.lockedBudget+=lockedBudget;
+    pd.records.push(r);
+  });
+
+  const vc=(b,p)=>{const v=b-p;return v===0?`<div class="drill-num dim">—</div>`:v>0?`<div class="drill-num vpos">+${D(v)}</div>`:`<div class="drill-num vneg">−${D(Math.abs(v))}</div>`;};
+
+  let html=`<div class="drill-wrap">`;
+  persons.forEach((pd,person)=>{
+    const personId=`person-${Math.random().toString(36).slice(2)}`;
+    const proj=pd.invoiced+pd.pending;
+    const pct=pd.budget>0?pd.lockedBudget/pd.budget:0;
+    html+=`<div class="drill-person-row" data-person-toggle="${personId}">
+      <div class="drill-person-name"><span class="drill-chev">▶</span>${person}</div>
+      <div class="drill-num">${D(pd.budget)}</div>
+      <div class="drill-num">${pd.invoiced>0?D(pd.invoiced):DASH}</div>
+      <div class="drill-num pend">${pd.pending>0?D(pd.pending):DASH}</div>
+      <div class="drill-num proj">${D(proj)}</div>
+      ${vc(pd.budget,proj)}
+      <div class="drill-lock">${horseshoe(pct,'var(--g400)')}</div>
+    </div>
+    <div class="drill-records" id="${personId}">
+      ${pd.records.map(r=>renderRecord(r,cfg,catKey)).join('')}
+    </div>`;
+  });
+  html+='</div>';
+  return html;
 }
 
 function renderPersonDetail(recs,cfg,catKey){
