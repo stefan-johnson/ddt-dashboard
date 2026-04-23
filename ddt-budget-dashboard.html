@@ -2814,6 +2814,7 @@ function renderPersonDetail(recs,cfg,catKey){
   const vc=(bud,proj)=>{const v=bud-proj;return v===0?`<div class="drill-num dim">—</div>`:v>0?`<div class="drill-num vpos">+${D(v)}</div>`:`<div class="drill-num vneg">−${D(Math.abs(v))}</div>`;};
 
   let html=`<div class="drill-wrap">`;
+  parties.forEach((persons,party)=>{
     const totBud=[...persons.values()].reduce((s,p)=>s+p.budget,0);
     const totInv=[...persons.values()].reduce((s,p)=>s+p.invoiced,0);
     const totPend=[...persons.values()].reduce((s,p)=>s+p.pending,0);
