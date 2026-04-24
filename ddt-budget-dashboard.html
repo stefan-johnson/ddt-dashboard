@@ -1112,9 +1112,9 @@ function varStr(v){
 
 // Cost variance: budget - projected. Positive = under budget = good (green). Plain English.
 function costVar(budget,projected){
-  if(!budget||budget===0)return`<div class="drill-num dim ${cls}">—</div>`;
+  if(!budget||budget===0)return`<div class="drill-num dim">—</div>`;
   const diff=budget-projected;
-  if(Math.abs(diff)<0.5)return`<div class="drill-num dim ${cls}">—</div>`;
+  if(Math.abs(diff)<0.5)return`<div class="drill-num dim">—</div>`;
   if(diff>0)return`<div class="drill-num vpos">${D(diff)} under</div>`;
   return`<div class="drill-num vneg">${D(Math.abs(diff))} over</div>`;
 }
