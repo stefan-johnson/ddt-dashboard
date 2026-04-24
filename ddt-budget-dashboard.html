@@ -512,7 +512,7 @@ select:focus{border-color:var(--g400);}
   /* Projected number */
   .drill-num.proj{font-size:12px!important;font-weight:bold!important;}
   .drill-num.vpos,.drill-num.vneg,.drill-num.dim{font-size:9px!important;}
-  .cost-var-label{display:inline!important;}
+  .cost-var-label{display:block!important;font-size:9px;font-weight:normal;line-height:1.3;}
   /* Record label: 2 lines max */
   .drill-record-label{font-size:9px;line-height:1.4;overflow:hidden;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
@@ -2516,7 +2516,7 @@ function buildDrill(){
       </div>
       <div class="css-cell css-b3">
         <div class="kpi-label css-lbl">Variance</div>
-        <div class="css-val" style="color:${totalVar>0?'var(--green600)':totalVar<0?'var(--red600)':'inherit'}">${totalVar>0?'+':totalVar<0?'−':''}${D(Math.abs(totalVar))}</div>
+        <div class="css-val" style="color:${totalVar>0?'var(--green600)':totalVar<0?'var(--red600)':'inherit'}">${totalVar===0?DASH:D(Math.abs(totalVar))}<span class="cost-var-label">${totalVar>0?' under':totalVar<0?' over':''}</span></div>
       </div>
       <div class="css-cell css-b4">
         <div class="kpi-label css-lbl">Invoiced</div>
@@ -2573,7 +2573,7 @@ function buildDrill(){
       <span class="cost-totals-num">${totalInvoiced>0?D(totalInvoiced):DASH}</span>
       <span class="cost-totals-num" style="font-style:italic;color:var(--g400)">${totalPending>0?D(totalPending):DASH}</span>
       <span class="cost-totals-num" style="font-weight:bold">${D(totalProj)}</span>
-      <span class="cost-totals-num" style="color:${totalVar>0?'var(--green600)':totalVar<0?'var(--red600)':'inherit'}">${totalVar>0?'+':totalVar<0?'−':''}${D(Math.abs(totalVar))}</span>
+      <span class="cost-totals-num" style="color:${totalVar>0?'var(--green600)':totalVar<0?'var(--red600)':'inherit'}">${totalVar===0?DASH:D(Math.abs(totalVar))}<span class="cost-var-label">${totalVar>0?' under':totalVar<0?' over':''}</span></span>
       <div style="display:flex;align-items:center;justify-content:center">${horseshoe(c.costsPct,'var(--black)')}</div>
     </div>`;
 
@@ -2896,7 +2896,7 @@ function renderBarChart(rows,title){
   const axisMax=step*steps;
   const axisTicks=Array.from({length:steps+1},(_,i)=>i*step);
 
-  const barH=18, rowGap=14, labelW=96;
+  const barH=18, rowGap=14, labelW=window.innerWidth<640?72:96;
   const chartW=`calc(100% - ${labelW+16}px)`;
 
   const fmt=v=>v===0?'$0k':v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v;
@@ -2907,8 +2907,8 @@ function renderBarChart(rows,title){
     const invW=(r.invoiced/axisMax*100).toFixed(2);
     const pendW=(r.pending/axisMax*100).toFixed(2);
     const variance=r.budget-proj;
-    const varStr=variance>0?`<span style="color:var(--green600);font-size:9px">+${D(variance)}</span>`:
-                 variance<0?`<span style="color:var(--red600);font-size:9px">−${D(Math.abs(variance))}</span>`:'';
+    const varStr=variance>0?`<span style="color:var(--green600);font-size:9px">${D(variance)} under</span>`:
+                 variance<0?`<span style="color:var(--red600);font-size:9px">${D(Math.abs(variance))} over</span>`:'';
     return`<div style="display:flex;align-items:center;gap:12px;margin-bottom:${rowGap}px">
       <div style="width:${labelW}px;flex-shrink:0;text-align:right">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:5px">
@@ -3037,7 +3037,7 @@ const CAT_TABLES={
     fids:{desc:'Description',dept:'Department',event:'Tour Event',
           budget:'Budget Per Show (USD)',actual:'Actual (USD)',status:'Status',finalised:'Budget Finalised',
           leg:'Tour Leg',name:'Name'}},
-  'Misc':{tid:'tblG65wr4nnaNOEj4',deptFilter:'Misc',
+  'Misc':{tid:'tblG65wr4nnaNOEj4',deptFilter:'Misc/Entertainment',
     fids:{desc:'Description',dept:'Department',event:'Tour Event',
           budget:'Budget Per Show (USD)',actual:'Actual (USD)',status:'Status',finalised:'Budget Finalised',
           leg:'Tour Leg',name:'Name'}},
