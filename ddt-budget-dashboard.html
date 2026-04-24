@@ -460,10 +460,18 @@ select:focus{border-color:var(--g400);}
 /* Hide old drill-controls when swipe nav is shown */
 .drill-controls.hidden{display:none;}
 
+/* SVG chevron for drill rows */
+.drill-chev{font-size:0;display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;flex-shrink:0;}
+.drill-chev::after{content:'';display:block;width:7px;height:7px;
+  border-right:1.5px solid var(--g400);border-bottom:1.5px solid var(--g400);
+  transform:rotate(-45deg);transition:transform .15s;margin-left:2px;}
+.drill-chev.open::after{transform:rotate(45deg);margin-top:-2px;}
+
 @media(max-width:640px){
   /* Drill rows — name | projected | variance only */
   .drill-party-row,.drill-person-row,.drill-record-row{
-    grid-template-columns:1fr 76px 60px!important;
+    grid-template-columns:1fr 80px 64px!important;
     overflow:hidden;
   }
   /* Hide budget (2), invoiced (3), pending (4) */
@@ -476,18 +484,24 @@ select:focus{border-color:var(--g400);}
   .drill-record-row>*:nth-child(2),
   .drill-record-row>*:nth-child(3),
   .drill-record-row>*:nth-child(4){display:none!important;}
-  /* Hide lock/horseshoe (7th child + .drill-lock class) */
+  /* Hide lock (7th) */
   .drill-party-row>*:nth-child(7),
   .drill-person-row>*:nth-child(7),
   .drill-record-row>*:nth-child(7),
   .drill-lock{display:none!important;}
   /* Hide drill col headers */
   .drill-col-hdr{display:none!important;}
-  /* Projected bolder */
+  /* Option B: left border grouping — no indentation, no colour */
+  .drill-persons{border-left:2px solid var(--g100)!important;margin-left:0!important;}
+  .drill-person-row{padding-left:14px!important;}
+  .drill-record-row{padding-left:14px!important;background:var(--g50)!important;}
+  .drill-party-row{background:var(--g50)!important;}
+  /* Projected number */
   .drill-num.proj{font-size:12px!important;font-weight:bold!important;}
   .drill-num.vpos,.drill-num.vneg,.drill-num.dim{font-size:9px!important;}
   /* Record label: 2 lines max */
-  .drill-record-label{font-size:9px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .drill-record-label{font-size:9px;line-height:1.4;overflow:hidden;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 }
 @media(max-width:640px){
   /* Header */
@@ -518,8 +532,20 @@ select:focus{border-color:var(--g400);}
   /* Auth card */
   .auth-card{width:calc(100vw - 32px);padding:24px 20px;}
 
+  /* P&L table — on mobile: 2 columns (name + I+P), hide Budget and Variance */
+  .pnl-table th:nth-child(2),.pnl-table td:nth-child(2),
+  .pnl-table th:nth-child(4),.pnl-table td:nth-child(4){display:none!important;}
+  .pnl-3col th:nth-child(3){width:auto;}
+  .pnl-table td{padding:7px 12px!important;font-size:11px!important;}
+  .pnl-amt{font-size:11px!important;}
+  .pnl-costs-var-badge{display:block!important;font-size:9px;font-weight:normal;margin-top:2px;}
+
   /* KPI cards — 2 col, solo card spans full width */
   .dd-kpi-row{grid-template-columns:1fr 1fr!important;}
+  .dd-kpi-row>.dd-kpi-card:first-child{grid-column:1/-1;}
+  .kc-solo{padding:12px var(--cp);}
+  .kc-solo-val{font-size:24px;}
+  .kc-hero-val{font-size:18px;}
   .dd-kpi-row>.dd-kpi-card:first-child{grid-column:1/-1;}
   .kc-solo{padding:12px var(--cp);}
   .kc-solo-val{font-size:24px;}
@@ -1082,6 +1108,15 @@ function varStr(v){
   if(v>0)return`<span class="var-pos">+${D(v)}</span>`;
   if(v<0)return`<span class="var-neg">-${D(Math.abs(v))}</span>`;
   return D(v);
+}
+
+// Cost variance: budget - projected. Positive = under budget = good (green). Plain English.
+function costVar(budget,projected){
+  if(!budget||budget===0)return`<div class="drill-num dim ${cls}">—</div>`;
+  const diff=budget-projected;
+  if(Math.abs(diff)<0.5)return`<div class="drill-num dim ${cls}">—</div>`;
+  if(diff>0)return`<div class="drill-num vpos">${D(diff)} under</div>`;
+  return`<div class="drill-num vneg">${D(Math.abs(diff))} over</div>`;
 }
 
 const REGION_ORDER=['NA','SA','EU/UK','ANZ','ROW'];
@@ -2386,7 +2421,9 @@ function buildDrill(){
       <td class="pnl-name" style="padding-top:11px">Tour costs</td>
       <td class="pnl-amt neg" style="padding-top:11px">−${D(c.costs)}</td>
       <td style="padding:9px 12px;border-bottom:0.5px solid var(--g100)">
-        <div style="text-align:right;font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--red600);margin-bottom:5px">−${D(costsIP)}</div>
+        <div style="text-align:right;font-family:var(--fd);font-size:12px;font-weight:bold;color:var(--red600);margin-bottom:5px">−${D(costsIP)}
+          ${costsIPVariance!==0?`<span class="pnl-costs-var-badge" style="display:none">${costsIPVariance>0?`<span class="var-pos">${D(costsIPVariance)} under</span>`:`<span class="var-neg">${D(Math.abs(costsIPVariance))} over</span>`}</span>`:''}
+        </div>
         ${c.costsAct>0||costsPending>0?`
         <div class="pnl-stacked-bar">
           <div style="width:${costsIP>0?(c.costsAct/costsIP*100).toFixed(1):0}%;background:var(--black);border-radius:2px 0 0 2px;height:100%"></div>
@@ -2397,7 +2434,7 @@ function buildDrill(){
           <span>${D(costsPending)} pending</span>
         </div>`:''}
       </td>
-      <td class="pnl-amt" style="padding-right:12px;padding-top:11px">${costsIPVariance>0?`<span class="var-pos">+${D(costsIPVariance)}</span>`:costsIPVariance<0?`<span class="var-neg">−${D(Math.abs(costsIPVariance))}</span>`:'—'}</td>
+      <td class="pnl-amt" style="padding-right:12px;padding-top:11px">${costsIPVariance>0?`<span class="var-pos">${D(costsIPVariance)} under</span>`:costsIPVariance<0?`<span class="var-neg">${D(Math.abs(costsIPVariance))} over</span>`:'—'}</td>
     </tr>
     <tr class="pnl-total" style="vertical-align:top">
       <td class="pnl-name">Net profit</td>
@@ -2482,11 +2519,11 @@ function buildDrill(){
       const color=CAT_COLORS[cat.key]||'var(--g400)';
       const proj=cat.invoiced+cat.pending;
       const variance=cat.budget>0?cat.budget-proj:null;
-      const varCell=variance===null?DASH:variance===0?DASH:variance>0?`<span style="color:var(--green600)">+${D(variance)}</span>`:`<span style="color:var(--red600)">−${D(Math.abs(variance))}</span>`;
+      const varCell=variance===null?DASH:costVar(cat.budget,proj);
       return`
         <div class="cost-cat-row" style="grid-template-columns:${COL_GRID}" onclick="toggleCat(${i})">
           <div class="cost-cat-name">
-            <span class="cost-chevron" id="chev-${i}">▶</span>
+            <span class="cost-chevron" id="chev-${i}"></span><span class="drill-chev"</span>
             ${colorDot(color)}${cat.key}
             ${cat.budget===0?'<span class="pill gray" style="font-size:7px">No budget</span>':cat.invoiced===0&&cat.pending===0?'<span class="pill gray" style="font-size:7px">Pending</span>':''}
           </div>
@@ -2615,11 +2652,11 @@ function renderPartyDetail(rows){
     const proj=r.invoiced+r.pending;
     const variance=r.budget-proj;
     const pct=r.budget>0?(r.lockedBudget/r.budget):0;
-    const varCell=variance===0?DASH:variance>0?`<span style="color:var(--green600)">+${D(variance)}</span>`:`<span style="color:var(--red600)">−${D(Math.abs(variance))}</span>`;
+    const varCell=costVar(r.budget,proj);
     const bid=`party-body-${partyBodyCounter++}`;
     return`<div class="cost-cat-row" style="grid-template-columns:${COL_GRID}" onclick="togglePartyRow('${bid}','${r.name}')">
       <div class="cost-cat-name">
-        <span class="cost-chevron" id="chev-${bid}">▶</span>
+        <span class="cost-chevron" id="chev-${bid}"></span>
         <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;margin-right:4px"></span>
         ${r.name}
       </div>
@@ -2686,7 +2723,7 @@ async function togglePartyRow(bid,partyName){
         <div class="cost-cat-row" style="grid-template-columns:${COL_GRID_PARTY};padding-left:40px;cursor:pointer"
              onclick="(function(el){const b=el.nextElementSibling;const c=el.querySelector('.cost-chevron');b.classList.toggle('open');c.classList.toggle('open');})(this)">
           <div class="cost-cat-name">
-            <span class="cost-chevron">▶</span>${key}
+            <span class="cost-chevron"></span>${key}
           </div>
         </div>
         <div class="cost-body">${subHtml}</div>
@@ -3161,7 +3198,7 @@ function renderPersonDetailFlat(recs,cfg,catKey){
     pd.records.push(r);
   });
 
-  const vc=(b,p)=>{const v=b-p;return v===0?`<div class="drill-num dim">—</div>`:v>0?`<div class="drill-num vpos">+${D(v)}</div>`:`<div class="drill-num vneg">−${D(Math.abs(v))}</div>`;};
+  const vc=(b,p)=>costVar(b,p);
 
   let html=`<div class="drill-wrap">`;
   persons.forEach((pd,person)=>{
@@ -3169,7 +3206,7 @@ function renderPersonDetailFlat(recs,cfg,catKey){
     const proj=pd.invoiced+pd.pending;
     const pct=pd.budget>0?pd.lockedBudget/pd.budget:0;
     html+=`<div class="drill-person-row" data-person-toggle="${personId}">
-      <div class="drill-person-name"><span class="drill-chev">▶</span>${person}</div>
+      <div class="drill-person-name"><span class="drill-chev"></span>${person}</div>
       <div class="drill-num">${D(pd.budget)}</div>
       <div class="drill-num">${pd.invoiced>0?D(pd.invoiced):DASH}</div>
       <div class="drill-num pend">${pd.pending>0?D(pd.pending):DASH}</div>
@@ -3218,7 +3255,7 @@ function renderPersonDetail(recs,cfg,catKey){
     pd.records.push(r);
   });
 
-  const vc=(bud,proj)=>{const v=bud-proj;return v===0?`<div class="drill-num dim">—</div>`:v>0?`<div class="drill-num vpos">+${D(v)}</div>`:`<div class="drill-num vneg">−${D(Math.abs(v))}</div>`;};
+  const vc=(bud,proj)=>costVar(bud,proj);
 
   let html=`<div class="drill-wrap">`;
   parties.forEach((persons,party)=>{
@@ -3230,7 +3267,7 @@ function renderPersonDetail(recs,cfg,catKey){
     const pct=totBud>0?totLk/totBud:0;
     const pid=`party-${Math.random().toString(36).slice(2)}`;
     html+=`<div class="drill-party-row" data-party-toggle="${pid}">
-      <div class="drill-party-name"><span class="drill-chev">▶</span>${party}</div>
+      <div class="drill-party-name"><span class="drill-chev"></span>${party}</div>
       <div class="drill-num">${D(totBud)}</div>
       <div class="drill-num">${totInv>0?D(totInv):DASH}</div>
       <div class="drill-num pend">${totPend>0?D(totPend):DASH}</div>
@@ -3245,7 +3282,7 @@ function renderPersonDetail(recs,cfg,catKey){
       const proj=pd.invoiced+pd.pending;
       const pct2=pd.budget>0?pd.lockedBudget/pd.budget:0;
       html+=`<div class="drill-person-row" data-person-toggle="${personId}">
-        <div class="drill-person-name"><span class="drill-chev">▶</span>${person}</div>
+        <div class="drill-person-name"><span class="drill-chev"></span>${person}</div>
         <div class="drill-num">${D(pd.budget)}</div>
         <div class="drill-num">${pd.invoiced>0?D(pd.invoiced):DASH}</div>
         <div class="drill-num pend">${pd.pending>0?D(pd.pending):DASH}</div>
@@ -3271,7 +3308,7 @@ function renderRecord(r,cfg,catKey){
   const pending=finalised?0:budget;
   const proj=invoiced+pending;
   const variance=budget>0?budget-proj:0;
-  const varCell=variance===0?`<div class="drill-num dim">—</div>`:variance>0?`<div class="drill-num vpos">+${D(variance)}</div>`:`<div class="drill-num vneg">−${D(Math.abs(variance))}</div>`;
+  const varCell=costVar(budget,proj);
 
   let label='';
   if(catKey==='Flights'){
@@ -3353,7 +3390,7 @@ function renderProductionDetail(recs,cfg){
     sd.lines.push({desc,budget,invoiced,pending,status,finalised});
   });
 
-  const vc=(b,p)=>{const v=b-p;return v===0?`<div class="drill-num dim">—</div>`:v>0?`<div class="drill-num vpos">+${D(v)}</div>`:`<div class="drill-num vneg">−${D(Math.abs(v))}</div>`;};
+  const vc=(b,p)=>costVar(b,p);
 
   let html=`<div class="drill-wrap">`;
   [...shows.entries()].sort((a,b)=>a[1].sortKey.localeCompare(b[1].sortKey))
@@ -3362,7 +3399,7 @@ function renderProductionDetail(recs,cfg){
     const proj=sd.invoiced+sd.pending;
     const pct=sd.budget>0?sd.lockedBudget/sd.budget:0;
     html+=`<div class="drill-party-row" data-party-toggle="${sid}">
-      <div class="drill-party-name"><span class="drill-chev open">▶</span>${show}</div>
+      <div class="drill-party-name"><span class="drill-chev open"></span>${show}</div>
       <div class="drill-num">${D(sd.budget)}</div>
       <div class="drill-num">${sd.invoiced>0?D(sd.invoiced):DASH}</div>
       <div class="drill-num pend">${sd.pending>0?D(sd.pending):DASH}</div>
